@@ -40,7 +40,7 @@ class LSTM:
 
         # Label
         self.label = tf.placeholder(
-            shape=(self.batch_size, self.time_step, self.n_features), dtype=tf.float32)
+            shape=(self.batch_size, self.n_classes), dtype=tf.float32)
 
         # Build model
         self.lstm_model = self.model(self.n_hidden_units, self.n_layers)
@@ -144,6 +144,7 @@ class LSTM:
         """
         rnn_cells = [self.lstm_layer(n_hidden_units, name_scope="lstm_layer_{0}".format(i))
                      for i in range(n_layers)]
+
         return tf.contrib.rnn.MultiRNNCell(rnn_cells)
 
     def fit(self, x, y):

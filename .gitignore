@@ -4,3 +4,6 @@ venv
 *.log
 *.json
 .idea
+
+src/model/rnn/data/*
+!src/model/rnn/data/.gitkeep
