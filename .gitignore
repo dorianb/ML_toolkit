@@ -7,3 +7,6 @@ venv
 
 src/model/rnn/data/*
 !src/model/rnn/data/.gitkeep
+
+src/model/computer_vision/data/*
+!src/model/computer_vision/data/.gitkeep
