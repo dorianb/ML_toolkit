@@ -3,9 +3,15 @@ import tensorflow as tf
 
 class Vgg:
 
+    """
+    The Vgg model is convolution network. The architecture is described in the following
+    paper: https://arxiv.org/pdf/1409.1556.pdf
+
+    """
+
     def __init__(self, batch_size=1, height=1200, width=800, n_channel=3, dim_out=10,
                  n_classes=10, learning_rate=10, n_epochs=1, validation_step=10,
-                 validation_size=10, logger=None):
+                 is_encoder=True, validation_size=10, logger=None):
         """
         Initialization of the Vgg model.
 
@@ -20,6 +26,7 @@ class Vgg:
             n_epochs: the number of epochs
             validation_step: the number of training examples to use for training before
              evaluation on validation dataset
+            is_encoder: the vgg is used as an encoder
             validation_size: the number of examples to use for validation
             logger: an instance object of logging module.
 
@@ -37,6 +44,7 @@ class Vgg:
         self.learning_rate = learning_rate
         self.n_epochs = n_epochs
         self.validation_step = validation_step
+        self.is_encoder = is_encoder
         self.validation_size = validation_size
         self.logger = logger
 
@@ -92,7 +100,7 @@ class Vgg:
         conv1_2 = tf.Print(conv1_2, [tf.shape(conv1_2)], message="Conv1_2 shape:")
 
         # Max pooling2D
-        pool1 = tf.nn.max_pool(conv1_2, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1],
+        pool1 = tf.nn.max_pool(conv1_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
                                 padding='SAME', name="pool1")
         pool1 = tf.Print(pool1, [tf.shape(pool1)], message="Pool 1 shape:")
 
@@ -108,7 +116,7 @@ class Vgg:
         conv2_2 = tf.Print(conv2_2, [tf.shape(conv2_2)], message="Conv2_2 shape:")
 
         # Max pooling2D
-        pool2 = tf.nn.max_pool(conv2_2, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1],
+        pool2 = tf.nn.max_pool(conv2_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
                                 padding='SAME', name="pool2")
         pool2 = tf.Print(pool2, [tf.shape(pool2)], message="Pool 2 shape:")
 
@@ -129,7 +137,7 @@ class Vgg:
         conv3_3 = tf.Print(conv3_3, [tf.shape(conv3_3)], message="Conv3_3 shape:")
 
         # Max pooling2D
-        pool3 = tf.nn.max_pool(conv3_3, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1],
+        pool3 = tf.nn.max_pool(conv3_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
                                 padding='SAME', name="pool3")
         pool3 = tf.Print(pool3, [tf.shape(pool3)], message="Pool 3 shape:")
 
@@ -150,7 +158,7 @@ class Vgg:
         conv4_3 = tf.Print(conv4_3, [tf.shape(conv4_3)], message="Conv4_3 shape:")
 
         # Max pooling2D
-        pool4 = tf.nn.max_pool(conv4_3, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1],
+        pool4 = tf.nn.max_pool(conv4_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
                                  padding='SAME', name="pool4")
         pool4 = tf.Print(pool4, [tf.shape(pool4)], message="Pool 4 shape:")
 
@@ -171,7 +179,7 @@ class Vgg:
         conv5_3 = tf.Print(conv5_3, [tf.shape(conv5_3)], message="Conv5_3 shape:")
 
         # Max pooling2D
-        pool5 = tf.nn.max_pool(conv5_3, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1],
+        pool5 = tf.nn.max_pool(conv5_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
                                  padding='SAME', name="pool5")
         pool5 = tf.Print(pool5, [tf.shape(pool5)], message="Pool 5 shape:")
 
@@ -181,17 +189,23 @@ class Vgg:
                               strides=[1, 1, 1, 1], padding='SAME', name="conv19"))
         fc6 = tf.Print(fc6, [tf.shape(fc6)], message="fc6 shape:")
 
-        fc7 = tf.nn.relu(tf.nn.conv2d(fc6, filter=Vgg.initialize_variable(
-                                                    "filter7", shape=[1, 1, 1, 4096]),
-                            strides=[1, 1, 1, 1], padding='SAME', name="conv20"))
-        fc7 = tf.Print(fc7, [tf.shape(fc7)], message="fc7 shape:")
+        if self.is_encoder:
 
-        fc8 = tf.nn.relu(tf.nn.conv2d(fc7, filter=Vgg.initialize_variable(
-                                            "filter8", shape=[1, 1, 1, dim_output]),
-                            strides=[1, 1, 1, 1], padding='SAME', name="conv21"))
-        fc8 = tf.Print(fc8, [tf.shape(fc8)], message="fc8 shape:")
+            return fc6
 
-        return fc8
+        else:
+
+            fc7 = tf.nn.relu(tf.nn.conv2d(fc6, filter=Vgg.initialize_variable(
+                                                        "filter7", shape=[1, 1, 1, 4096]),
+                                strides=[1, 1, 1, 1], padding='SAME', name="conv20"))
+            fc7 = tf.Print(fc7, [tf.shape(fc7)], message="fc7 shape:")
+
+            fc8 = tf.nn.relu(tf.nn.conv2d(fc7, filter=Vgg.initialize_variable(
+                                                "filter8", shape=[1, 1, 1, dim_output]),
+                                strides=[1, 1, 1, 1], padding='SAME', name="conv21"))
+            fc8 = tf.Print(fc8, [tf.shape(fc8)], message="fc8 shape:")
+
+            return fc8
 
     def fit(self):
         """
