@@ -42,10 +42,10 @@ class ComputerVision:
 
             if binarize:
                 block_size = 35
-                local_thresh = threshold_local(image, block_size, offset=10)
+                local_thresh = threshold_local(img, block_size, offset=10)
                 img = img > local_thresh
 
-            img = img.reshape((image.size[0], image.size[1], 1))
+            img = img.reshape((image.size[1], image.size[0], 1))
 
         else:
             img = np.array(image)

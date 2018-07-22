@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 from computer_vision.classComputerVision import ComputerVision
 
 
@@ -10,7 +11,8 @@ class Vgg(ComputerVision):
 
     """
 
-    def __init__(self, batch_size=1, height=1200, width=800, n_channel=3, dim_out=10,
+    def __init__(self, batch_size=1, height=1200, width=800, dim_out=10,
+                 grayscale=True, binarize=True, normalize=False,
                  n_classes=10, learning_rate=10, n_epochs=1, validation_step=10,
                  is_encoder=True, validation_size=10, logger=None):
         """
@@ -20,7 +22,9 @@ class Vgg(ComputerVision):
             batch_size: the size of batch
             height: the height of the image
             width: the width of the image
-            n_channel: the number of channel
+            grayscale: whether the input image are grayscale
+            binarize: whether input image are binarized
+            normalize: whether input image are normalized
             dim_out: the output dimension of the model
             n_classes: the number of classes
             learning_rate: the learning rate applied in the gradient descent optimization
@@ -41,9 +45,12 @@ class Vgg(ComputerVision):
         self.batch_size = batch_size
         self.height = height
         self.width = width
-        self.n_channel = n_channel
+        self.grayscale = grayscale
+        self.binarize = binarize
+        self.normalize = normalize
+        self.n_channel = 1 if self.grayscale else 3
         self.dim_out = dim_out
-        self.n_classes= n_classes
+        self.n_classes = n_classes
         self.learning_rate = learning_rate
         self.n_epochs = n_epochs
         self.validation_step = validation_step
@@ -53,7 +60,7 @@ class Vgg(ComputerVision):
 
         # Input
         self.input = tf.placeholder(
-            shape=(self.batch_size, None, None, None), dtype=tf.float32)
+            shape=(self.batch_size, None, None, self.n_channel), dtype=tf.float32)
 
         # Label
         self.label = tf.placeholder(shape=(self.batch_size, self.n_classes),
@@ -234,7 +241,7 @@ class Vgg(ComputerVision):
         # Optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
 
-        # initalialize variables
+        # Initialize variables
         init_op = tf.global_variables_initializer()
 
         with tf.Session() as sess:
@@ -268,7 +275,14 @@ class Vgg(ComputerVision):
         Returns:
             the batch examples
         """
-        return None, None
+        images = []
+        labels = []
+        for example in examples:
+            image, label = self.load_example(example)
+            images.append(image)
+            labels.append(label)
+
+        return np.stack(images), np.stack(labels)
 
     def load_example(self, example):
         """
@@ -280,7 +294,15 @@ class Vgg(ComputerVision):
         Returns:
             the example image array and label
         """
-        ComputerVision.load_image()
+        image_path, label_id = example
+        image = ComputerVision.load_image(image_path, grayscale=self.grayscale,
+                                          binarize=self.binarize,
+                                          normalize=self.normalize)
+
+        label = np.zeros(self.n_classes)
+        label[label_id] = 1
+
+        return image, label
 
     def validation_eval(self):
         pass
