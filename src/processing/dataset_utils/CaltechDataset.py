@@ -1,0 +1,54 @@
+import os
+from dataset_utils.Dataset import Dataset
+
+
+class CaltechDataset(Dataset):
+
+    def __init__(self, path):
+        """
+        Initialize a CaltechDataset instance object.
+
+        Args:
+            path: the path to the dataset folder
+        Returns:
+            Nothing
+        """
+        Dataset.__init__(self)
+
+        self.dataset_path = path
+        self.labels = self.get_labels()
+
+        images_and_labels = self.get_examples()
+
+        self.training_set, self.validation_set, self.test_set = self.train_val_test(
+            images_and_labels, train_size=0.7, val_size=0.2, test_size=0.1)
+
+    def get_labels(self):
+        """
+        Get the labels from subdirectories' names
+
+        Returns:
+            the labels
+        """
+        return {i + 1: label
+                for i, label in enumerate(sorted(os.listdir(self.dataset_path)))}
+
+    def get_examples(self):
+        """
+        Get the images from the dataset folder and their label.
+
+        Returns:
+            list of tuple with image path, label index
+        """
+        result = []
+
+        for index, label in self.labels.items():
+
+            label_path = os.path.join(self.dataset_path, label)
+
+            for image_filename in os.listdir(label_path):
+
+                image_path = os.path.join(label_path, image_filename)
+                result.append((image_path, index))
+
+        return result
