@@ -1,6 +1,5 @@
 import unittest
-
-from classLSTM import LSTM
+from rnn.classLSTM import LSTM
 
 
 class LSTMTestCase(unittest.TestCase):

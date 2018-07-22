@@ -5,7 +5,7 @@ def get_image_label(folder_path):
     """
 
     Args:
-        folder_path:
+        folder_path: the path to the Caltech dataset folder
 
     Returns:
         list of tuple with image path, image filename, label id and label name
