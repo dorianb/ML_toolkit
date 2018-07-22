@@ -1,7 +1,8 @@
 import tensorflow as tf
+from computer_vision.classComputerVision import ComputerVision
 
 
-class Vgg:
+class Vgg(ComputerVision):
 
     """
     The Vgg model is convolution network. The architecture is described in the following
@@ -35,6 +36,8 @@ class Vgg:
         """
         tf.reset_default_graph()
 
+        ComputerVision.__init__(self)
+
         self.batch_size = batch_size
         self.height = height
         self.width = width
@@ -54,9 +57,8 @@ class Vgg:
             dtype=tf.float32)
 
         # Label
-        self.label = tf.placeholder(
-            shape=(self.batch_size, self.height, self.width, self.n_channel),
-            dtype=tf.float32)
+        self.label = tf.placeholder(shape=(self.batch_size, self.n_classes),
+                                    dtype=tf.float32)
 
         # Build model
         self.model = self.build_model(self.dim_out)
@@ -207,20 +209,28 @@ class Vgg:
 
             return fc8
 
-    def fit(self):
+    def fit(self, training_set, validation_set):
         """
         Fit the model weights with input and labels.
+
+        Args:
+            training_set: the training input and label
+            validation_set: the validation input and label
 
         Returns:
             Nothing
         """
 
+        if self.is_encoder:
+            raise Exception("Vgg Fit method is implemented for image classification "
+                            "purpose only")
+
         # Compute probabilities
-        logits = tf.nn.softmax(self.model)
+        logit = tf.nn.softmax(tf.squeeze(self.model))
 
         # Loss
-        loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits,
-                                                          labels=self.labels)
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logit,
+                                                          labels=self.label)
 
         # Optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
@@ -228,20 +238,17 @@ class Vgg:
         # initalialize variables
         init_op = tf.global_variables_initializer()
 
-        # Get the training dataset
-        training_dataset = self.get_dataset('train')
-
         with tf.Session() as sess:
 
             sess.run(init_op)
 
             for epoch in range(self.n_epochs):
 
-                for i in range(self.batch_size, len(training_dataset)):
+                for i in range(self.batch_size, len(training_set)):
 
-                    batch_data = training_dataset[i - self.batch_size: i]
+                    batch_examples = training_set[i - self.batch_size: i]
 
-                    image_batch, label_batch = self.load_batch(batch_data)
+                    image_batch, label_batch = self.load_batch(batch_examples)
 
                     _, cost = sess.run([optimizer, loss], feed_dict={
                         self.input: image_batch,
@@ -252,12 +259,39 @@ class Vgg:
 
                         self.validation_eval()
 
-    def predict(self, x):
+    def load_batch(self, examples):
+        """
+        Load the batch examples.
+
+        Args:
+            examples: the example in the batch
+
+        Returns:
+            the batch examples
+        """
+        return None, None
+
+    def load_example(self, example):
+        """
+        Load the example.
+
+        Args:
+            example: an example with image path and label
+
+        Returns:
+            the example image array and label
+        """
+        ComputerVision.load_image()
+
+    def validation_eval(self):
+        pass
+
+    def predict(self, set):
         """
         Predict the output from input.
 
         Args:
-            x: input array
+            set: the input set
 
         Returns:
             predictions array

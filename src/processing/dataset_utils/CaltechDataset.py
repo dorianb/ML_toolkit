@@ -4,7 +4,7 @@ from dataset_utils.Dataset import Dataset
 
 class CaltechDataset(Dataset):
 
-    def __init__(self, path):
+    def __init__(self, path, train_size=0.7, val_size=0.2, test_size=0.1):
         """
         Initialize a CaltechDataset instance object.
 
@@ -21,7 +21,8 @@ class CaltechDataset(Dataset):
         images_and_labels = self.get_examples()
 
         self.training_set, self.validation_set, self.test_set = self.train_val_test(
-            images_and_labels, train_size=0.7, val_size=0.2, test_size=0.1)
+            images_and_labels, train_size=train_size, val_size=val_size,
+            test_size=test_size)
 
     def get_labels(self):
         """
