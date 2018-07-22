@@ -1,3 +1,5 @@
 tensorflow
 google-cloud-dataflow
 numpy
+Pillow
+scikit-image

@@ -53,8 +53,7 @@ class Vgg(ComputerVision):
 
         # Input
         self.input = tf.placeholder(
-            shape=(self.batch_size, self.height, self.width, self.n_channel),
-            dtype=tf.float32)
+            shape=(self.batch_size, None, None, None), dtype=tf.float32)
 
         # Label
         self.label = tf.placeholder(shape=(self.batch_size, self.n_classes),
