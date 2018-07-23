@@ -60,7 +60,9 @@ class Vgg(ComputerVision):
 
         # Input
         self.input = tf.placeholder(
-            shape=(self.batch_size, None, None, self.n_channel), dtype=tf.float32)
+            # shape=(self.batch_size, 224, 224, 3),
+            shape=(self.batch_size, None, None, self.n_channel),
+            dtype=tf.float32)
 
         # Label
         self.label = tf.placeholder(shape=(self.batch_size, self.n_classes),
@@ -97,13 +99,13 @@ class Vgg(ComputerVision):
 
         # 2 x conv2D
         conv1_1 = tf.nn.relu(tf.nn.conv2d(self.input, filter=Vgg.initialize_variable(
-                                                    "filter1_1", shape=[1, 3, 3, 64]),
+                                            "filter1_1", shape=[3, 3, self.n_channel, 64]),
                              strides=[1, 1, 1, 1], padding='SAME', name="conv1_1"))
 
         conv1_1 = tf.Print(conv1_1, [tf.shape(conv1_1)], message="Conv1_1 shape:")
 
         conv1_2 = tf.nn.relu(tf.nn.conv2d(conv1_1, filter=Vgg.initialize_variable(
-                                                    "filter1_2", shape=[1, 3, 3, 64]),
+                                            "filter1_2", shape=[3, 3, 64, 64]),
                              strides=[1, 1, 1, 1], padding='SAME', name="conv1_2"))
         conv1_2 = tf.Print(conv1_2, [tf.shape(conv1_2)], message="Conv1_2 shape:")
 
@@ -114,12 +116,12 @@ class Vgg(ComputerVision):
 
         # 2 x conv2D
         conv2_1 = tf.nn.relu(tf.nn.conv2d(pool1, filter=Vgg.initialize_variable(
-                                                    "filter2_1", shape=[1, 3, 3, 128]),
+                                            "filter2_1", shape=[3, 3, 64, 128]),
                              strides=[1, 1, 1, 1], padding='SAME', name="conv2_1"))
         conv2_1 = tf.Print(conv2_1, [tf.shape(conv2_1)], message="Conv2_1 shape:")
 
         conv2_2 = tf.nn.relu(tf.nn.conv2d(conv2_1, filter=Vgg.initialize_variable(
-                                                    "filter2_2", shape=[1, 3, 3, 128]),
+                                            "filter2_2", shape=[3, 3, 128, 128]),
                              strides=[1, 1, 1, 1], padding='SAME', name="conv2_2"))
         conv2_2 = tf.Print(conv2_2, [tf.shape(conv2_2)], message="Conv2_2 shape:")
 
@@ -130,17 +132,17 @@ class Vgg(ComputerVision):
 
         # 3 x conv2D
         conv3_1 = tf.nn.relu(tf.nn.conv2d(pool2, filter=Vgg.initialize_variable(
-                                                    "filter3_1", shape=[1, 3, 3, 256]),
+                                            "filter3_1", shape=[3, 3, 128, 256]),
                              strides=[1, 1, 1, 1], padding='SAME', name="conv3_1"))
         conv3_1 = tf.Print(conv3_1, [tf.shape(conv3_1)], message="conv3_1 shape:")
 
         conv3_2 = tf.nn.relu(tf.nn.conv2d(conv3_1, filter=Vgg.initialize_variable(
-                                                    "filter3_2", shape=[1, 3, 3, 256]),
+                                            "filter3_2", shape=[3, 3, 256, 256]),
                              strides=[1, 1, 1, 1], padding='SAME', name="conv3_2"))
         conv3_2 = tf.Print(conv3_2, [tf.shape(conv3_2)], message="conv3_2 shape:")
 
         conv3_3 = tf.nn.relu(tf.nn.conv2d(conv3_2, filter=Vgg.initialize_variable(
-                                                    "filter3_3", shape=[1, 3, 3, 256]),
+                                            "filter3_3", shape=[3, 3, 256, 256]),
                              strides=[1, 1, 1, 1], padding='SAME', name="conv3_3"))
         conv3_3 = tf.Print(conv3_3, [tf.shape(conv3_3)], message="Conv3_3 shape:")
 
@@ -151,17 +153,17 @@ class Vgg(ComputerVision):
 
         # 3 x conv2D
         conv4_1 = tf.nn.relu(tf.nn.conv2d(pool3, filter=Vgg.initialize_variable(
-                                                    "filter4_1", shape=[1, 3, 3, 512]),
+                                            "filter4_1", shape=[3, 3, 256, 512]),
                              strides=[1, 1, 1, 1], padding='SAME', name="conv4_1"))
         conv4_1 = tf.Print(conv4_1, [tf.shape(conv4_1)], message="Conv4_1 shape:")
 
         conv4_2 = tf.nn.relu(tf.nn.conv2d(conv4_1, filter=Vgg.initialize_variable(
-                                                    "filter4_2", shape=[1, 3, 3, 512]),
+                                            "filter4_2", shape=[3, 3, 512, 512]),
                              strides=[1, 1, 1, 1], padding='SAME', name="conv4_2"))
         conv4_2 = tf.Print(conv4_2, [tf.shape(conv4_2)], message="Conv4_2 shape:")
 
         conv4_3 = tf.nn.relu(tf.nn.conv2d(conv4_2, filter=Vgg.initialize_variable(
-                                                    "filter4_3", shape=[1, 3, 3, 512]),
+                                            "filter4_3", shape=[3, 3, 512, 512]),
                              strides=[1, 1, 1, 1], padding='SAME', name="conv4_3"))
         conv4_3 = tf.Print(conv4_3, [tf.shape(conv4_3)], message="Conv4_3 shape:")
 
@@ -172,17 +174,17 @@ class Vgg(ComputerVision):
 
         # 3 x conv2D
         conv5_1 = tf.nn.relu(tf.nn.conv2d(pool4, filter=Vgg.initialize_variable(
-                                                    "filter5_1", shape=[1, 3, 3, 512]),
+                                            "filter5_1", shape=[3, 3, 512, 512]),
                               strides=[1, 1, 1, 1], padding='SAME', name="conv5_1"))
         conv5_1 = tf.Print(conv5_1, [tf.shape(conv5_1)], message="Conv5_1 shape:")
 
         conv5_2 = tf.nn.relu(tf.nn.conv2d(conv5_1, filter=Vgg.initialize_variable(
-                                                    "filter5_2", shape=[1, 3, 3, 512]),
+                                            "filter5_2", shape=[3, 3, 512, 512]),
                               strides=[1, 1, 1, 1], padding='SAME', name="conv5_2"))
         conv5_2 = tf.Print(conv5_2, [tf.shape(conv5_2)], message="Conv5_2 shape:")
 
         conv5_3 = tf.nn.relu(tf.nn.conv2d(conv5_2, filter=Vgg.initialize_variable(
-                                                    "filter5_3", shape=[1, 3, 3, 512]),
+                                            "filter5_3", shape=[3, 3, 512, 512]),
                               strides=[1, 1, 1, 1], padding='SAME', name="conv5_3"))
         conv5_3 = tf.Print(conv5_3, [tf.shape(conv5_3)], message="Conv5_3 shape:")
 
@@ -193,7 +195,7 @@ class Vgg(ComputerVision):
 
         # 3 x Dense
         fc6 = tf.nn.relu(tf.nn.conv2d(pool5, filter=Vgg.initialize_variable(
-                                                    "filter6", shape=[1, 7, 7, 4096]),
+                                            "filter6", shape=[7, 7, 512, 4096]),
                               strides=[1, 1, 1, 1], padding='SAME', name="conv19"))
         fc6 = tf.Print(fc6, [tf.shape(fc6)], message="fc6 shape:")
 
@@ -204,12 +206,12 @@ class Vgg(ComputerVision):
         else:
 
             fc7 = tf.nn.relu(tf.nn.conv2d(fc6, filter=Vgg.initialize_variable(
-                                                        "filter7", shape=[1, 1, 1, 4096]),
+                                            "filter7", shape=[1, 1, 4096, 4096]),
                                 strides=[1, 1, 1, 1], padding='SAME', name="conv20"))
             fc7 = tf.Print(fc7, [tf.shape(fc7)], message="fc7 shape:")
 
             fc8 = tf.nn.relu(tf.nn.conv2d(fc7, filter=Vgg.initialize_variable(
-                                                "filter8", shape=[1, 1, 1, dim_output]),
+                                            "filter8", shape=[1, 1, 4096, dim_output]),
                                 strides=[1, 1, 1, 1], padding='SAME', name="conv21"))
             fc8 = tf.Print(fc8, [tf.shape(fc8)], message="fc8 shape:")
 
