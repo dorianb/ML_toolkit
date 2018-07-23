@@ -21,7 +21,8 @@ class ComputerVision:
         pass
 
     @staticmethod
-    def load_image(image_path, grayscale=True, binarize=False, normalize=False):
+    def load_image(image_path, grayscale=True, binarize=False, normalize=False,
+                   resize_dim=None):
         """
         Load an image as an array
 
@@ -30,11 +31,15 @@ class ComputerVision:
             grayscale: whether to load image as grayscale
             binarize: whether to binarize the image
             normalize: whether to normalize the image
+            resize_dim: tuple (width, height) to which resize the image
 
         Returns:
             an array
         """
         image = Image.open(image_path)
+
+        if isinstance(resize_dim, tuple):
+            image = image.resize(resize_dim, resample=Image.BICUBIC)
 
         if grayscale:
             image = image.convert('L')

@@ -49,6 +49,7 @@ class Vgg(ComputerVision):
         self.binarize = binarize
         self.normalize = normalize
         self.n_channel = 1 if self.grayscale else 3
+        self.resize_dim = (224, 224)
         self.dim_out = dim_out
         self.n_classes = n_classes
         self.learning_rate = learning_rate
@@ -60,7 +61,6 @@ class Vgg(ComputerVision):
 
         # Input
         self.input = tf.placeholder(
-            # shape=(self.batch_size, 224, 224, 3),
             shape=(self.batch_size, None, None, self.n_channel),
             dtype=tf.float32)
 
@@ -196,7 +196,7 @@ class Vgg(ComputerVision):
         # 3 x Dense
         fc6 = tf.nn.relu(tf.nn.conv2d(pool5, filter=Vgg.initialize_variable(
                                             "filter6", shape=[7, 7, 512, 4096]),
-                              strides=[1, 1, 1, 1], padding='SAME', name="conv19"))
+                              strides=[1, 1, 1, 1], padding='SAME', name="fc6"))
         fc6 = tf.Print(fc6, [tf.shape(fc6)], message="fc6 shape:")
 
         if self.is_encoder:
@@ -207,12 +207,12 @@ class Vgg(ComputerVision):
 
             fc7 = tf.nn.relu(tf.nn.conv2d(fc6, filter=Vgg.initialize_variable(
                                             "filter7", shape=[1, 1, 4096, 4096]),
-                                strides=[1, 1, 1, 1], padding='SAME', name="conv20"))
+                                strides=[1, 1, 1, 1], padding='SAME', name="fc7"))
             fc7 = tf.Print(fc7, [tf.shape(fc7)], message="fc7 shape:")
 
             fc8 = tf.nn.relu(tf.nn.conv2d(fc7, filter=Vgg.initialize_variable(
                                             "filter8", shape=[1, 1, 4096, dim_output]),
-                                strides=[1, 1, 1, 1], padding='SAME', name="conv21"))
+                                strides=[1, 1, 1, 1], padding='SAME', name="fc8"))
             fc8 = tf.Print(fc8, [tf.shape(fc8)], message="fc8 shape:")
 
             return fc8
@@ -299,7 +299,8 @@ class Vgg(ComputerVision):
         image_path, label_id = example
         image = ComputerVision.load_image(image_path, grayscale=self.grayscale,
                                           binarize=self.binarize,
-                                          normalize=self.normalize)
+                                          normalize=self.normalize,
+                                          resize_dim=self.resize_dim)
 
         label = np.zeros(self.n_classes)
         label[label_id] = 1

@@ -14,17 +14,21 @@ class ComputerVisionTestCase(unittest.TestCase):
         image_path = os.path.join(DATASET_PATH, "002.american-flag", "002_0001.jpg")
 
         image = computer_vision_1.load_image(image_path, grayscale=True, binarize=False,
-                                             normalize=False)
+                                             normalize=False, resize_dim=None)
         self.assertEqual(image.shape, (328, 500, 1))
 
         image = computer_vision_1.load_image(image_path, grayscale=False, binarize=False,
-                                             normalize=False)
+                                             normalize=False, resize_dim=None)
         self.assertEqual(image.shape, (328, 500, 3))
 
         image = computer_vision_1.load_image(image_path, grayscale=True, binarize=True,
-                                             normalize=False)
+                                             normalize=False, resize_dim=None)
         self.assertEqual(image.shape, (328, 500, 1))
         self.assertListEqual(np.unique(image).tolist(), [0, 1])
+
+        image = computer_vision_1.load_image(image_path, grayscale=True, binarize=False,
+                                             normalize=False, resize_dim=(224, 224))
+        self.assertEqual(image.shape, (224, 224, 1))
 
 
 if __name__ == '__main__':
