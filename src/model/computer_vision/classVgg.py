@@ -19,6 +19,7 @@ class Vgg(ComputerVision):
         Initialization of the Vgg model.
 
         Args:
+            classes: dictionary of classes
             batch_size: the size of batch
             height: the height of the image
             width: the width of the image
@@ -26,7 +27,6 @@ class Vgg(ComputerVision):
             binarize: whether input image are binarized
             normalize: whether input image are normalized
             dim_out: the output dimension of the model
-            classes: dictionary of classes
             learning_rate: the learning rate applied in the gradient descent optimization
             n_epochs: the number of epochs
             validation_step: the number of training examples to use for training before
@@ -253,7 +253,7 @@ class Vgg(ComputerVision):
 
             for epoch in range(self.n_epochs):
 
-                for i in range(self.batch_size, len(training_set)):
+                for i in range(self.batch_size, len(training_set), self.batch_size):
 
                     batch_examples = training_set[i - self.batch_size: i]
 
@@ -263,6 +263,8 @@ class Vgg(ComputerVision):
                         self.input: image_batch,
                         self.label: label_batch
                     })
+
+                    self.logger.info("Cost {0} for batch {1}".format(cost, i / self.batch_size)) if self.logger else None
 
                     if i % self.validation_step == 0:
 
