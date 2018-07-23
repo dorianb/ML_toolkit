@@ -11,9 +11,9 @@ class Vgg(ComputerVision):
 
     """
 
-    def __init__(self, batch_size=1, height=1200, width=800, dim_out=10,
+    def __init__(self, classes, batch_size=1, height=1200, width=800, dim_out=10,
                  grayscale=True, binarize=True, normalize=False,
-                 n_classes=10, learning_rate=10, n_epochs=1, validation_step=10,
+                 learning_rate=10, n_epochs=1, validation_step=10,
                  is_encoder=True, validation_size=10, logger=None):
         """
         Initialization of the Vgg model.
@@ -26,7 +26,7 @@ class Vgg(ComputerVision):
             binarize: whether input image are binarized
             normalize: whether input image are normalized
             dim_out: the output dimension of the model
-            n_classes: the number of classes
+            classes: dictionary of classes
             learning_rate: the learning rate applied in the gradient descent optimization
             n_epochs: the number of epochs
             validation_step: the number of training examples to use for training before
@@ -51,7 +51,8 @@ class Vgg(ComputerVision):
         self.n_channel = 1 if self.grayscale else 3
         self.resize_dim = (224, 224)
         self.dim_out = dim_out
-        self.n_classes = n_classes
+        self.classes = classes
+        self.n_classes = len(classes)
         self.learning_rate = learning_rate
         self.n_epochs = n_epochs
         self.validation_step = validation_step
