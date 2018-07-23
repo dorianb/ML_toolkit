@@ -38,7 +38,6 @@ class Dataset:
         last_test_index = last_val_index + int(test_size * n)
         test_indexes = indexes[last_val_index:last_test_index]
 
-        print("Train indexes")
         examples = np.array(examples)
         return examples[train_indexes], examples[val_indexes], examples[test_indexes]
 
