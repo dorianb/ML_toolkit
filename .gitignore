@@ -10,3 +10,6 @@ src/model/rnn/data/*
 
 src/model/computer_vision/data/*
 !src/model/computer_vision/data/.gitkeep
+
+src/model/computer_vision/summaries/vgg/*
+!src/model/computer_vision/summaries/vgg/.gitkeep

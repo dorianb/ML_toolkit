@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import os
 from time import time
 from computer_vision.classComputerVision import ComputerVision
 
@@ -15,7 +16,8 @@ class Vgg(ComputerVision):
     def __init__(self, classes, batch_size=1, height=1200, width=800, dim_out=10,
                  grayscale=True, binarize=True, normalize=False,
                  learning_rate=10, n_epochs=1, validation_step=10,
-                 is_encoder=True, validation_size=10, logger=None, debug=False):
+                 is_encoder=True, validation_size=10, summary_path="",
+                 logger=None, debug=False):
         """
         Initialization of the Vgg model.
 
@@ -34,6 +36,7 @@ class Vgg(ComputerVision):
              evaluation on validation dataset
             is_encoder: the vgg is used as an encoder
             validation_size: the number of examples to use for validation
+            summary_path: the path to the summary
             logger: an instance object of logging module.
             debug: whether the debug mode is activated or not
 
@@ -60,6 +63,7 @@ class Vgg(ComputerVision):
         self.validation_step = validation_step
         self.is_encoder = is_encoder
         self.validation_size = validation_size
+        self.summary_path = summary_path
         self.logger = logger
         self.debug = debug
 
@@ -94,157 +98,161 @@ class Vgg(ComputerVision):
         initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
         return tf.get_variable(name, shape=shape, dtype=tf.float32, initializer=initializer)
 
-    def build_model(self, dim_output=1000):
+    def build_model(self, dim_output=1000, name=None):
         """
         Build the vgg graph model.
 
         Args:
             dim_output: the dimension output of the network
+            name: the name of the graph operations
 
         Returns:
             the last layer of the model
         """
+        with tf.name_scope(name, "VggOp", [self.input]):
 
-        # 2 x conv2D
-        conv1_1 = tf.nn.relu(tf.nn.conv2d(self.input, filter=Vgg.initialize_variable(
-                                            "filter1_1", shape=[3, 3, self.n_channel, 64]),
-                             strides=[1, 1, 1, 1], padding='SAME', name="conv1_1"))
+            with tf.variable_scope("Parameters", reuse=tf.AUTO_REUSE):
 
-        conv1_1 = tf.Print(conv1_1, [tf.shape(conv1_1)], message="Conv1_1 shape:",
-                           summarize=4) if self.debug else conv1_1
+                # 2 x conv2D
+                conv1_1 = tf.nn.relu(tf.nn.conv2d(self.input, filter=Vgg.initialize_variable(
+                                                    "filter1_1", shape=[3, 3, self.n_channel, 64]),
+                                     strides=[1, 1, 1, 1], padding='SAME', name="conv1_1"))
 
-        conv1_2 = tf.nn.relu(tf.nn.conv2d(conv1_1, filter=Vgg.initialize_variable(
-                                            "filter1_2", shape=[3, 3, 64, 64]),
-                             strides=[1, 1, 1, 1], padding='SAME', name="conv1_2"))
-        conv1_2 = tf.Print(conv1_2, [tf.shape(conv1_2)], message="Conv1_2 shape:",
-                           summarize=4) if self.debug else conv1_2
+                conv1_1 = tf.Print(conv1_1, [tf.shape(conv1_1)], message="Conv1_1 shape:",
+                                   summarize=4) if self.debug else conv1_1
 
-        # Max pooling2D
-        pool1 = tf.nn.max_pool(conv1_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                                padding='SAME', name="pool1")
-        pool1 = tf.Print(pool1, [tf.shape(pool1)], message="Pool 1 shape:",
-                         summarize=4) if self.debug else pool1
+                conv1_2 = tf.nn.relu(tf.nn.conv2d(conv1_1, filter=Vgg.initialize_variable(
+                                                    "filter1_2", shape=[3, 3, 64, 64]),
+                                     strides=[1, 1, 1, 1], padding='SAME', name="conv1_2"))
+                conv1_2 = tf.Print(conv1_2, [tf.shape(conv1_2)], message="Conv1_2 shape:",
+                                   summarize=4) if self.debug else conv1_2
 
-        # 2 x conv2D
-        conv2_1 = tf.nn.relu(tf.nn.conv2d(pool1, filter=Vgg.initialize_variable(
-                                            "filter2_1", shape=[3, 3, 64, 128]),
-                             strides=[1, 1, 1, 1], padding='SAME', name="conv2_1"))
-        conv2_1 = tf.Print(conv2_1, [tf.shape(conv2_1)], message="Conv2_1 shape:",
-                           summarize=4) if self.debug else conv2_1
+                # Max pooling2D
+                pool1 = tf.nn.max_pool(conv1_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
+                                        padding='SAME', name="pool1")
+                pool1 = tf.Print(pool1, [tf.shape(pool1)], message="Pool 1 shape:",
+                                 summarize=4) if self.debug else pool1
 
-        conv2_2 = tf.nn.relu(tf.nn.conv2d(conv2_1, filter=Vgg.initialize_variable(
-                                            "filter2_2", shape=[3, 3, 128, 128]),
-                             strides=[1, 1, 1, 1], padding='SAME', name="conv2_2"))
-        conv2_2 = tf.Print(conv2_2, [tf.shape(conv2_2)], message="Conv2_2 shape:",
-                           summarize=4) if self.debug else conv2_2
+                # 2 x conv2D
+                conv2_1 = tf.nn.relu(tf.nn.conv2d(pool1, filter=Vgg.initialize_variable(
+                                                    "filter2_1", shape=[3, 3, 64, 128]),
+                                     strides=[1, 1, 1, 1], padding='SAME', name="conv2_1"))
+                conv2_1 = tf.Print(conv2_1, [tf.shape(conv2_1)], message="Conv2_1 shape:",
+                                   summarize=4) if self.debug else conv2_1
 
-        # Max pooling2D
-        pool2 = tf.nn.max_pool(conv2_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                                padding='SAME', name="pool2")
-        pool2 = tf.Print(pool2, [tf.shape(pool2)], message="Pool 2 shape:",
-                         summarize=4) if self.debug else pool2
+                conv2_2 = tf.nn.relu(tf.nn.conv2d(conv2_1, filter=Vgg.initialize_variable(
+                                                    "filter2_2", shape=[3, 3, 128, 128]),
+                                     strides=[1, 1, 1, 1], padding='SAME', name="conv2_2"))
+                conv2_2 = tf.Print(conv2_2, [tf.shape(conv2_2)], message="Conv2_2 shape:",
+                                   summarize=4) if self.debug else conv2_2
 
-        # 3 x conv2D
-        conv3_1 = tf.nn.relu(tf.nn.conv2d(pool2, filter=Vgg.initialize_variable(
-                                            "filter3_1", shape=[3, 3, 128, 256]),
-                             strides=[1, 1, 1, 1], padding='SAME', name="conv3_1"))
-        conv3_1 = tf.Print(conv3_1, [tf.shape(conv3_1)], message="conv3_1 shape:",
-                           summarize=4) if self.debug else conv3_1
+                # Max pooling2D
+                pool2 = tf.nn.max_pool(conv2_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
+                                        padding='SAME', name="pool2")
+                pool2 = tf.Print(pool2, [tf.shape(pool2)], message="Pool 2 shape:",
+                                 summarize=4) if self.debug else pool2
 
-        conv3_2 = tf.nn.relu(tf.nn.conv2d(conv3_1, filter=Vgg.initialize_variable(
-                                            "filter3_2", shape=[3, 3, 256, 256]),
-                             strides=[1, 1, 1, 1], padding='SAME', name="conv3_2"))
-        conv3_2 = tf.Print(conv3_2, [tf.shape(conv3_2)], message="conv3_2 shape:",
-                           summarize=4) if self.debug else conv3_2
+                # 3 x conv2D
+                conv3_1 = tf.nn.relu(tf.nn.conv2d(pool2, filter=Vgg.initialize_variable(
+                                                    "filter3_1", shape=[3, 3, 128, 256]),
+                                     strides=[1, 1, 1, 1], padding='SAME', name="conv3_1"))
+                conv3_1 = tf.Print(conv3_1, [tf.shape(conv3_1)], message="conv3_1 shape:",
+                                   summarize=4) if self.debug else conv3_1
 
-        conv3_3 = tf.nn.relu(tf.nn.conv2d(conv3_2, filter=Vgg.initialize_variable(
-                                            "filter3_3", shape=[3, 3, 256, 256]),
-                             strides=[1, 1, 1, 1], padding='SAME', name="conv3_3"))
-        conv3_3 = tf.Print(conv3_3, [tf.shape(conv3_3)], message="Conv3_3 shape:",
-                           summarize=4) if self.debug else conv3_3
+                conv3_2 = tf.nn.relu(tf.nn.conv2d(conv3_1, filter=Vgg.initialize_variable(
+                                                    "filter3_2", shape=[3, 3, 256, 256]),
+                                     strides=[1, 1, 1, 1], padding='SAME', name="conv3_2"))
+                conv3_2 = tf.Print(conv3_2, [tf.shape(conv3_2)], message="conv3_2 shape:",
+                                   summarize=4) if self.debug else conv3_2
 
-        # Max pooling2D
-        pool3 = tf.nn.max_pool(conv3_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                                padding='SAME', name="pool3")
-        pool3 = tf.Print(pool3, [tf.shape(pool3)], message="Pool 3 shape:",
-                         summarize=4) if self.debug else pool3
+                conv3_3 = tf.nn.relu(tf.nn.conv2d(conv3_2, filter=Vgg.initialize_variable(
+                                                    "filter3_3", shape=[3, 3, 256, 256]),
+                                     strides=[1, 1, 1, 1], padding='SAME', name="conv3_3"))
+                conv3_3 = tf.Print(conv3_3, [tf.shape(conv3_3)], message="Conv3_3 shape:",
+                                   summarize=4) if self.debug else conv3_3
 
-        # 3 x conv2D
-        conv4_1 = tf.nn.relu(tf.nn.conv2d(pool3, filter=Vgg.initialize_variable(
-                                            "filter4_1", shape=[3, 3, 256, 512]),
-                             strides=[1, 1, 1, 1], padding='SAME', name="conv4_1"))
-        conv4_1 = tf.Print(conv4_1, [tf.shape(conv4_1)], message="Conv4_1 shape:",
-                           summarize=4) if self.debug else conv4_1
+                # Max pooling2D
+                pool3 = tf.nn.max_pool(conv3_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
+                                        padding='SAME', name="pool3")
+                pool3 = tf.Print(pool3, [tf.shape(pool3)], message="Pool 3 shape:",
+                                 summarize=4) if self.debug else pool3
 
-        conv4_2 = tf.nn.relu(tf.nn.conv2d(conv4_1, filter=Vgg.initialize_variable(
-                                            "filter4_2", shape=[3, 3, 512, 512]),
-                             strides=[1, 1, 1, 1], padding='SAME', name="conv4_2"))
-        conv4_2 = tf.Print(conv4_2, [tf.shape(conv4_2)], message="Conv4_2 shape:",
-                           summarize=4) if self.debug else conv4_2
+                # 3 x conv2D
+                conv4_1 = tf.nn.relu(tf.nn.conv2d(pool3, filter=Vgg.initialize_variable(
+                                                    "filter4_1", shape=[3, 3, 256, 512]),
+                                     strides=[1, 1, 1, 1], padding='SAME', name="conv4_1"))
+                conv4_1 = tf.Print(conv4_1, [tf.shape(conv4_1)], message="Conv4_1 shape:",
+                                   summarize=4) if self.debug else conv4_1
 
-        conv4_3 = tf.nn.relu(tf.nn.conv2d(conv4_2, filter=Vgg.initialize_variable(
-                                            "filter4_3", shape=[3, 3, 512, 512]),
-                             strides=[1, 1, 1, 1], padding='SAME', name="conv4_3"))
-        conv4_3 = tf.Print(conv4_3, [tf.shape(conv4_3)], message="Conv4_3 shape:",
-                           summarize=4) if self.debug else conv4_3
+                conv4_2 = tf.nn.relu(tf.nn.conv2d(conv4_1, filter=Vgg.initialize_variable(
+                                                    "filter4_2", shape=[3, 3, 512, 512]),
+                                     strides=[1, 1, 1, 1], padding='SAME', name="conv4_2"))
+                conv4_2 = tf.Print(conv4_2, [tf.shape(conv4_2)], message="Conv4_2 shape:",
+                                   summarize=4) if self.debug else conv4_2
 
-        # Max pooling2D
-        pool4 = tf.nn.max_pool(conv4_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                                 padding='SAME', name="pool4")
-        pool4 = tf.Print(pool4, [tf.shape(pool4)], message="Pool 4 shape:",
-                         summarize=4) if self.debug else pool4
+                conv4_3 = tf.nn.relu(tf.nn.conv2d(conv4_2, filter=Vgg.initialize_variable(
+                                                    "filter4_3", shape=[3, 3, 512, 512]),
+                                     strides=[1, 1, 1, 1], padding='SAME', name="conv4_3"))
+                conv4_3 = tf.Print(conv4_3, [tf.shape(conv4_3)], message="Conv4_3 shape:",
+                                   summarize=4) if self.debug else conv4_3
 
-        # 3 x conv2D
-        conv5_1 = tf.nn.relu(tf.nn.conv2d(pool4, filter=Vgg.initialize_variable(
-                                            "filter5_1", shape=[3, 3, 512, 512]),
-                              strides=[1, 1, 1, 1], padding='SAME', name="conv5_1"))
-        conv5_1 = tf.Print(conv5_1, [tf.shape(conv5_1)], message="Conv5_1 shape:",
-                           summarize=4) if self.debug else conv5_1
+                # Max pooling2D
+                pool4 = tf.nn.max_pool(conv4_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
+                                         padding='SAME', name="pool4")
+                pool4 = tf.Print(pool4, [tf.shape(pool4)], message="Pool 4 shape:",
+                                 summarize=4) if self.debug else pool4
 
-        conv5_2 = tf.nn.relu(tf.nn.conv2d(conv5_1, filter=Vgg.initialize_variable(
-                                            "filter5_2", shape=[3, 3, 512, 512]),
-                              strides=[1, 1, 1, 1], padding='SAME', name="conv5_2"))
-        conv5_2 = tf.Print(conv5_2, [tf.shape(conv5_2)], message="Conv5_2 shape:",
-                           summarize=4) if self.debug else conv5_2
+                # 3 x conv2D
+                conv5_1 = tf.nn.relu(tf.nn.conv2d(pool4, filter=Vgg.initialize_variable(
+                                                    "filter5_1", shape=[3, 3, 512, 512]),
+                                      strides=[1, 1, 1, 1], padding='SAME', name="conv5_1"))
+                conv5_1 = tf.Print(conv5_1, [tf.shape(conv5_1)], message="Conv5_1 shape:",
+                                   summarize=4) if self.debug else conv5_1
 
-        conv5_3 = tf.nn.relu(tf.nn.conv2d(conv5_2, filter=Vgg.initialize_variable(
-                                            "filter5_3", shape=[3, 3, 512, 512]),
-                              strides=[1, 1, 1, 1], padding='SAME', name="conv5_3"))
-        conv5_3 = tf.Print(conv5_3, [tf.shape(conv5_3)], message="Conv5_3 shape:",
-                           summarize=4) if self.debug else conv5_3
+                conv5_2 = tf.nn.relu(tf.nn.conv2d(conv5_1, filter=Vgg.initialize_variable(
+                                                    "filter5_2", shape=[3, 3, 512, 512]),
+                                      strides=[1, 1, 1, 1], padding='SAME', name="conv5_2"))
+                conv5_2 = tf.Print(conv5_2, [tf.shape(conv5_2)], message="Conv5_2 shape:",
+                                   summarize=4) if self.debug else conv5_2
 
-        # Max pooling2D
-        pool5 = tf.nn.max_pool(conv5_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                                 padding='SAME', name="pool5")
-        pool5 = tf.Print(pool5, [tf.shape(pool5)], message="Pool 5 shape:",
-                         summarize=4) if self.debug else pool5
+                conv5_3 = tf.nn.relu(tf.nn.conv2d(conv5_2, filter=Vgg.initialize_variable(
+                                                    "filter5_3", shape=[3, 3, 512, 512]),
+                                      strides=[1, 1, 1, 1], padding='SAME', name="conv5_3"))
+                conv5_3 = tf.Print(conv5_3, [tf.shape(conv5_3)], message="Conv5_3 shape:",
+                                   summarize=4) if self.debug else conv5_3
 
-        # 3 x Dense
-        fc6 = tf.nn.relu(tf.nn.conv2d(pool5, filter=Vgg.initialize_variable(
-                                            "filter6", shape=[7, 7, 512, 4096]),
-                              strides=[1, 7, 7, 1], padding='SAME', name="fc6"))
-        fc6 = tf.Print(fc6, [tf.shape(fc6)], message="fc6 shape:",
-                       summarize=4) if self.debug else fc6
+                # Max pooling2D
+                pool5 = tf.nn.max_pool(conv5_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
+                                         padding='SAME', name="pool5")
+                pool5 = tf.Print(pool5, [tf.shape(pool5)], message="Pool 5 shape:",
+                                 summarize=4) if self.debug else pool5
 
-        if self.is_encoder:
+                # 3 x Dense
+                fc6 = tf.nn.relu(tf.nn.conv2d(pool5, filter=Vgg.initialize_variable(
+                                                    "filter6", shape=[7, 7, 512, 4096]),
+                                      strides=[1, 7, 7, 1], padding='SAME', name="fc6"))
+                fc6 = tf.Print(fc6, [tf.shape(fc6)], message="fc6 shape:",
+                               summarize=4) if self.debug else fc6
 
-            return fc6
+                if self.is_encoder:
 
-        else:
+                    return fc6
 
-            fc7 = tf.nn.relu(tf.nn.conv2d(fc6, filter=Vgg.initialize_variable(
-                                            "filter7", shape=[1, 1, 4096, 4096]),
-                                strides=[1, 1, 1, 1], padding='SAME', name="fc7"))
-            fc7 = tf.Print(fc7, [tf.shape(fc7)], message="fc7 shape:",
-                           summarize=4) if self.debug else fc7
+                else:
 
-            fc8 = tf.nn.relu(tf.nn.conv2d(fc7, filter=Vgg.initialize_variable(
-                                            "filter8", shape=[1, 1, 4096, dim_output]),
-                                strides=[1, 1, 1, 1], padding='SAME', name="fc8"))
-            fc8 = tf.Print(fc8, [tf.shape(fc8)], message="fc8 shape:",
-                           summarize=4) if self.debug else fc8
+                    fc7 = tf.nn.relu(tf.nn.conv2d(fc6, filter=Vgg.initialize_variable(
+                                                    "filter7", shape=[1, 1, 4096, 4096]),
+                                        strides=[1, 1, 1, 1], padding='SAME', name="fc7"))
+                    fc7 = tf.Print(fc7, [tf.shape(fc7)], message="fc7 shape:",
+                                   summarize=4) if self.debug else fc7
 
-            return fc8
+                    fc8 = tf.nn.relu(tf.nn.conv2d(fc7, filter=Vgg.initialize_variable(
+                                                    "filter8", shape=[1, 1, 4096, dim_output]),
+                                        strides=[1, 1, 1, 1], padding='SAME', name="fc8"))
+                    fc8 = tf.Print(fc8, [tf.shape(fc8)], message="fc8 shape:",
+                                   summarize=4) if self.debug else fc8
+
+                    return fc8
 
     def fit(self, training_set, validation_set):
         """
@@ -276,11 +284,22 @@ class Vgg(ComputerVision):
         # Loss
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
             logits=logit, labels=label))
+        tf.summary.scalar('Softmax_cross_entropy', loss)
 
-        # Minization
+        # Accuracy
+        """
+        accuracy = tf.metrics.accuracy(labels=label,
+                                       predictions=tf.argmax(logit, axis=1))
+        tf.summary.scalar('Accuracy', accuracy)
+        """
+
+        # Minimization
         grads_and_vars = self.optimizer.compute_gradients(loss)
         self.logger.debug(grads_and_vars) if self.logger else None
         apply_gradient = self.optimizer.apply_gradients(grads_and_vars)
+
+        # Merge summaries
+        summaries = tf.summary.merge_all()
 
         # Initialize variables
         init_op = tf.global_variables_initializer()
@@ -288,6 +307,11 @@ class Vgg(ComputerVision):
         with tf.Session() as sess:
 
             sess.run(init_op)
+
+            train_writer = tf.summary.FileWriter(
+                os.path.join(self.summary_path, 'train'), sess.graph)
+            validation_writer = tf.summary.FileWriter(
+                os.path.join(self.summary_path, 'validation'))
 
             for epoch in range(self.n_epochs):
 
@@ -298,13 +322,21 @@ class Vgg(ComputerVision):
 
                     image_batch, label_batch = self.load_batch(batch_examples)
 
-                    _, cost = sess.run([apply_gradient, loss], feed_dict={
-                        self.input: image_batch,
-                        self.label: label_batch
-                    })
+                    _, loss_value, summaries_value = sess.run([
+                        apply_gradient, loss, summaries],
+                        feed_dict={
+                            self.input: image_batch,
+                            self.label: label_batch
+                        }
+                    )
+
+                    self.logger.info("Writing summary to {0}".format(self.summary_path))
+                    train_writer.add_summary(summaries_value, i * (epoch + 1))
 
                     time1 = time()
-                    self.logger.info("Cost {0} for batch {1} in {2:.2f} seconds".format(cost, i / self.batch_size, time1 - time0)) if self.logger else None
+                    self.logger.info(
+                        "Cost {0} for batch {1} in {2:.2f} seconds".format(
+                            loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
 
                     if i % self.validation_step == 0:
 
