@@ -92,7 +92,8 @@ class Vgg(ComputerVision):
         Returns:
             tensorflow variable
         """
-        initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
+        initializer = tf.zeros_initializer()
+        # initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
         return tf.get_variable(name, shape=shape, dtype=tf.float32,
                                initializer=initializer)
 
@@ -252,6 +253,54 @@ class Vgg(ComputerVision):
 
                     return fc8
 
+    def compute_loss(self, logit, label):
+        """
+        Compute the loss operation.
+
+        Args:
+            logit: the tensor of class probabilities (bach_size, n_classes)
+            label: the tensor of labels (batch_size, n_classes)
+
+        Returns:
+            loss: the loss
+        """
+        """                                                               
+        prod = tf.multiply(label, tf.log(logit))                          
+        prod = tf.Print(prod, [prod], message="Prod: ",                   
+                        summarize=self.n_classes * self.batch_size)       
+        loss = tf.reduce_mean(-tf.reduce_sum(prod, axis=-1))              
+        """
+        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
+                              logits=logit, labels=label))
+        # loss = tf.Print(loss, [loss], message='Loss:')
+        tf.summary.scalar('Cross_entropy', loss)
+        return loss
+
+    def compute_accuracy(self, logit, label):
+        """
+        Compute the accuracy measure.
+
+        Args:
+            logit: the tensor of class probabilities (bach_size, n_classes)
+            label: the tensor of labels (batch_size, n_classes)
+
+        Returns:
+            accuracy: the accuracy metric measure
+
+        """
+        pred = tf.argmax(logit, axis=-1)
+        y = tf.argmax(label, axis=-1)
+
+        pred = tf.Print(pred, [pred], message="Prediction: ",
+                        summarize=2) if self.debug else pred
+        y = tf.Print(y, [y], message="Label: ",
+                     summarize=2) if self.debug else y
+        accuracy = tf.reduce_mean(tf.cast(tf.equal(y, pred), "float"))
+        # accuracy = tf.metrics.accuracy(labels=y, predictions=pred)
+        tf.summary.scalar('Accuracy', accuracy)
+
+        return accuracy
+
     def fit(self, training_set, validation_set):
         """
         Fit the model weights with input and labels.
@@ -268,6 +317,8 @@ class Vgg(ComputerVision):
             raise Exception("Vgg Fit method is implemented for image classification "
                             "purpose only")
 
+        global_step = tf.Variable(0, dtype=tf.int32)
+
         # Compute probabilities
         model = tf.squeeze(self.model)
         model = tf.Print(model, [model], message="Last layer: ",
@@ -276,35 +327,32 @@ class Vgg(ComputerVision):
         logit = tf.nn.softmax(model)
         logit = tf.Print(logit, [logit], message="Probabilities: ",
                          summarize=self.n_classes * self.batch_size) if self.debug else logit
-        label = tf.Print(logit, [self.label], message="Truth label: ",
+        label = tf.Print(self.label, [self.label], message="Truth label: ",
                          summarize=self.n_classes * self.batch_size) if self.debug else self.label
 
         # Loss
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
-            logits=logit, labels=label))
-        tf.summary.scalar('Softmax_cross_entropy', loss)
+        loss = self.compute_loss(logit, label)
 
         # Accuracy
-        """
-        accuracy = tf.metrics.accuracy(labels=label,
-                                       predictions=tf.argmax(logit, axis=1))
-        tf.summary.scalar('Accuracy', accuracy)
-        """
+        accuracy = self.compute_accuracy(logit, label)
 
         # Minimization
         grads_and_vars = self.optimizer.compute_gradients(loss)
         self.logger.debug(grads_and_vars) if self.logger else None
-        apply_gradient = self.optimizer.apply_gradients(grads_and_vars)
+        train_op = self.optimizer.apply_gradients(grads_and_vars,
+                                                  global_step=global_step)
 
         # Merge summaries
         summaries = tf.summary.merge_all()
 
         # Initialize variables
-        init_op = tf.global_variables_initializer()
+        init_g = tf.global_variables_initializer()
+        init_l = tf.local_variables_initializer()
 
         with tf.Session() as sess:
 
-            sess.run(init_op)
+            sess.run(init_g)
+            sess.run(init_l)
 
             train_writer = tf.summary.FileWriter(
                 os.path.join(self.summary_path, 'train'), sess.graph)
@@ -320,8 +368,8 @@ class Vgg(ComputerVision):
 
                     image_batch, label_batch = self.load_batch(batch_examples)
 
-                    _, loss_value, summaries_value = sess.run([
-                        apply_gradient, loss, summaries],
+                    _, loss_value, summaries_value, accuracy_value = sess.run([
+                        train_op, loss, summaries, accuracy],
                         feed_dict={
                             self.input: image_batch,
                             self.label: label_batch
@@ -333,8 +381,8 @@ class Vgg(ComputerVision):
 
                     time1 = time()
                     self.logger.info(
-                        "Cost {0} for batch {1} in {2:.2f} seconds".format(
-                            loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
+                        "Accuracy = {0}, Cost = {1} for batch {2} in {3:.2f} seconds".format(
+                            accuracy_value, loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
 
                     if i % self.validation_step == 0:
 

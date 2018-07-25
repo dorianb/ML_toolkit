@@ -42,7 +42,7 @@ try:
     classes = cd_1.labels
     classes.update({0: 'ambiguous'})
 
-    vgg_1 = Vgg(classes, batch_size=args.batch_size, height=1200, width=800,
+    vgg_1 = Vgg(classes, batch_size=args.batch_size, height=224, width=224,
                 dim_out=len(classes),
                 grayscale=True, binarize=False, normalize=False,
                 learning_rate=args.learning_rate, n_epochs=1, validation_step=10,
