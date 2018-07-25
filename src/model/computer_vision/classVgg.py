@@ -13,7 +13,7 @@ class Vgg(ComputerVision):
 
     """
 
-    def __init__(self, classes, batch_size=1, height=1200, width=800, dim_out=10,
+    def __init__(self, classes, batch_size=1, height=224, width=224, dim_out=10,
                  grayscale=True, binarize=True, normalize=False,
                  learning_rate=10, n_epochs=1, validation_step=10,
                  is_encoder=True, validation_size=10, summary_path="",
@@ -48,13 +48,11 @@ class Vgg(ComputerVision):
         ComputerVision.__init__(self)
 
         self.batch_size = batch_size
-        self.height = height
-        self.width = width
         self.grayscale = grayscale
         self.binarize = binarize
         self.normalize = normalize
         self.n_channel = 1 if self.grayscale else 3
-        self.resize_dim = (224, 224)
+        self.resize_dim = (width, height)
         self.dim_out = dim_out
         self.classes = classes
         self.n_classes = len(classes)
@@ -94,9 +92,9 @@ class Vgg(ComputerVision):
         Returns:
             tensorflow variable
         """
-        # initializer = tf.truncated_normal_initializer(mean=0.0, stddev=1.0, seed=42)
         initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
-        return tf.get_variable(name, shape=shape, dtype=tf.float32, initializer=initializer)
+        return tf.get_variable(name, shape=shape, dtype=tf.float32,
+                               initializer=initializer)
 
     def build_model(self, dim_output=1000, name=None):
         """
