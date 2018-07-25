@@ -94,8 +94,23 @@ class Vgg(ComputerVision):
         """
         initializer = tf.zeros_initializer()
         # initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
-        return tf.get_variable(name, shape=shape, dtype=tf.float32,
-                               initializer=initializer)
+        variable = tf.get_variable(name, shape=shape, dtype=tf.float32,
+                                   initializer=initializer)
+        Vgg.variable_summaries(variable, name)
+        return variable
+
+    @staticmethod
+    def variable_summaries(var, name):
+        """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+        with tf.name_scope(name):
+            mean = tf.reduce_mean(var)
+            tf.summary.scalar('mean', mean)
+            with tf.name_scope('stddev'):
+                stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+            tf.summary.scalar('stddev', stddev)
+            tf.summary.scalar('max', tf.reduce_max(var))
+            tf.summary.scalar('min', tf.reduce_min(var))
+            tf.summary.histogram('histogram', var)
 
     def build_model(self, dim_output=1000, name=None):
         """
