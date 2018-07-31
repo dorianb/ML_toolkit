@@ -17,7 +17,7 @@ class Vgg(ComputerVision):
                  grayscale=True, binarize=True, normalize=False,
                  learning_rate=10, n_epochs=1, validation_step=10,
                  is_encoder=True, validation_size=10, summary_path="",
-                 logger=None, debug=False):
+                 checkpoint_path="", logger=None, debug=False):
         """
         Initialization of the Vgg model.
 
@@ -37,6 +37,7 @@ class Vgg(ComputerVision):
             is_encoder: the vgg is used as an encoder
             validation_size: the number of examples to use for validation
             summary_path: the path to the summary
+            checkpoint_path: the path to the checkpoint
             logger: an instance object of logging module.
             debug: whether the debug mode is activated or not
 
@@ -62,6 +63,7 @@ class Vgg(ComputerVision):
         self.is_encoder = is_encoder
         self.validation_size = validation_size
         self.summary_path = summary_path
+        self.checkpoint_path = checkpoint_path
         self.logger = logger
         self.debug = debug
 
@@ -360,6 +362,15 @@ class Vgg(ComputerVision):
         # Merge summaries
         summaries = tf.summary.merge_all()
 
+        # Summary writers
+        train_writer = tf.summary.FileWriter(
+            os.path.join(self.summary_path, 'train'))
+        validation_writer = tf.summary.FileWriter(
+            os.path.join(self.summary_path, 'validation'))
+
+        # Model saver
+        saver = tf.train.Saver()
+
         # Initialize variables
         init_g = tf.global_variables_initializer()
         init_l = tf.local_variables_initializer()
@@ -369,10 +380,7 @@ class Vgg(ComputerVision):
             sess.run(init_g)
             sess.run(init_l)
 
-            train_writer = tf.summary.FileWriter(
-                os.path.join(self.summary_path, 'train'), sess.graph)
-            validation_writer = tf.summary.FileWriter(
-                os.path.join(self.summary_path, 'validation'))
+            train_writer.add_graph(sess.graph)
 
             for epoch in range(self.n_epochs):
 
@@ -402,6 +410,12 @@ class Vgg(ComputerVision):
                     if i % self.validation_step == 0:
 
                         self.validation_eval()
+
+                        # Save the model
+                        checkpoint_filename = "checkpoint-" + str(epoch * i) + ".ckpt"
+                        save_path = saver.save(sess, os.path.join(
+                            self.checkpoint_path, checkpoint_filename))
+                        print("Model saved in file: %s" % save_path)
 
     def load_batch(self, examples):
         """
@@ -433,7 +447,8 @@ class Vgg(ComputerVision):
             the example image array and label
         """
         image_path, label_id = example
-        self.logger.info("Loading example: {0} with label {1}".format(image_path, label_id))
+        self.logger.info("Loading example: {0} with label {1}".format(
+            image_path, label_id)) if self.logger else None
 
         image = ComputerVision.load_image(image_path, grayscale=self.grayscale,
                                           binarize=self.binarize,

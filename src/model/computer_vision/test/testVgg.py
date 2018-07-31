@@ -11,7 +11,7 @@ class VggTestCase(unittest.TestCase):
 
     def test_init(self):
         classes = {0: 'ambiguous', 1: 'bird', 2: 'sheep'}
-        vgg_1 = Vgg(classes, batch_size=1, height=1200, width=800, dim_out=10,
+        vgg_1 = Vgg(classes, batch_size=1, height=224, width=224, dim_out=10,
                     grayscale=True, binarize=True, normalize=False,
                     learning_rate=10, n_epochs=1, validation_step=10,
                     is_encoder=True, validation_size=10, logger=None)
@@ -19,7 +19,7 @@ class VggTestCase(unittest.TestCase):
 
     def test_load_example(self):
         classes = {0: 'ambiguous', 1: 'bird', 2: 'sheep'}
-        vgg_1 = Vgg(classes, batch_size=1, height=1200, width=800, dim_out=10,
+        vgg_1 = Vgg(classes, batch_size=1, height=224, width=224, dim_out=10,
                     grayscale=True, binarize=True, normalize=False,
                     learning_rate=10, n_epochs=1, validation_step=10,
                     is_encoder=True, validation_size=10, logger=None)
@@ -31,7 +31,7 @@ class VggTestCase(unittest.TestCase):
 
     def test_load_batch(self):
         classes = {0: 'ambiguous', 1: 'bird', 2: 'sheep'}
-        vgg_1 = Vgg(classes, batch_size=2, height=1200, width=800, dim_out=10,
+        vgg_1 = Vgg(classes, batch_size=2, height=224, width=224, dim_out=10,
                     grayscale=True, binarize=True, normalize=False,
                     learning_rate=10, n_epochs=1, validation_step=10,
                     is_encoder=True, validation_size=10, logger=None)
