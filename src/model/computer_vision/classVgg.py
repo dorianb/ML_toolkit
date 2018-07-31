@@ -85,6 +85,15 @@ class Vgg(ComputerVision):
         self.optimizer = ComputerVision.get_optimizer(self.optimizer_name,
                                                       self.learning_rate)
 
+        # Summary writers
+        self.train_writer = tf.summary.FileWriter(
+            os.path.join(self.summary_path, 'train'))
+        self.validation_writer = tf.summary.FileWriter(
+            os.path.join(self.summary_path, 'validation'))
+
+        # Model saver
+        self.saver = tf.train.Saver()
+
     @staticmethod
     def initialize_variable(name, shape):
         """
@@ -365,15 +374,6 @@ class Vgg(ComputerVision):
         # Merge summaries
         summaries = tf.summary.merge_all()
 
-        # Summary writers
-        train_writer = tf.summary.FileWriter(
-            os.path.join(self.summary_path, 'train'))
-        validation_writer = tf.summary.FileWriter(
-            os.path.join(self.summary_path, 'validation'))
-
-        # Model saver
-        saver = tf.train.Saver()
-
         # Initialize variables
         init_g = tf.global_variables_initializer()
         init_l = tf.local_variables_initializer()
@@ -383,7 +383,7 @@ class Vgg(ComputerVision):
             sess.run(init_g)
             sess.run(init_l)
 
-            train_writer.add_graph(sess.graph)
+            self.train_writer.add_graph(sess.graph)
 
             for epoch in range(self.n_epochs):
 
@@ -403,7 +403,7 @@ class Vgg(ComputerVision):
                     )
 
                     self.logger.info("Writing summary to {0}".format(self.summary_path))
-                    train_writer.add_summary(summaries_value, i * (epoch + 1))
+                    self.train_writer.add_summary(summaries_value, i * (epoch + 1))
 
                     time1 = time()
                     self.logger.info(
@@ -415,10 +415,7 @@ class Vgg(ComputerVision):
                         self.validation_eval()
 
                         # Save the model
-                        checkpoint_filename = "checkpoint-" + str(epoch * i) + ".ckpt"
-                        save_path = saver.save(sess, os.path.join(
-                            self.checkpoint_path, checkpoint_filename))
-                        print("Model saved in file: %s" % save_path)
+                        ComputerVision.save(self, session, step=str(epoch * i))
 
     def load_batch(self, examples):
         """
