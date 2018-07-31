@@ -103,8 +103,8 @@ class Vgg(ComputerVision):
         Returns:
             tensorflow variable
         """
-        # initializer = tf.zeros_initializer()
-        initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
+        initializer = tf.zeros_initializer()
+        # initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
         variable = tf.get_variable(name, shape=shape, dtype=tf.float32,
                                    initializer=initializer)
         Vgg.variable_summaries(variable, name)
@@ -138,8 +138,13 @@ class Vgg(ComputerVision):
 
             with tf.variable_scope("Parameters", reuse=tf.AUTO_REUSE):
 
+                input = tf.Print(self.input, [tf.shape(self.input)], message="Input shape: ",
+                                 summarize=4) if self.debug else self.input
+                input = tf.Print(input, [input], message="Input: ",
+                                 summarize=100) if self.debug else input
+
                 # 2 x conv2D
-                conv1_1 = tf.nn.relu(tf.nn.conv2d(self.input, filter=Vgg.initialize_variable(
+                conv1_1 = tf.nn.relu(tf.nn.conv2d(input, filter=Vgg.initialize_variable(
                                                     "filter1_1", shape=[3, 3, self.n_channel, 64]),
                                      strides=[1, 1, 1, 1], padding='SAME', name="conv1_1"))
 
@@ -327,6 +332,24 @@ class Vgg(ComputerVision):
 
         return accuracy
 
+    def compute_gradient(self, loss, global_step):
+        """
+        Compute gradient and update parameters.
+
+        Args:
+            loss: the loss to minimize
+            global_step: the training step
+        Returns:
+            the training operation
+        """
+        """
+        grads_and_vars = self.optimizer.compute_gradients(loss)
+        self.logger.debug(grads_and_vars) if self.logger else None
+        return self.optimizer.apply_gradients(grads_and_vars,
+                                              global_step=global_step)
+        """
+        return self.optimizer.minimize(loss)
+
     def fit(self, training_set, validation_set):
         """
         Fit the model weights with input and labels.
@@ -362,11 +385,8 @@ class Vgg(ComputerVision):
         # Accuracy
         accuracy = self.compute_accuracy(logit, label)
 
-        # Minimization
-        grads_and_vars = self.optimizer.compute_gradients(loss)
-        self.logger.debug(grads_and_vars) if self.logger else None
-        train_op = self.optimizer.apply_gradients(grads_and_vars,
-                                                  global_step=global_step)
+        # Optimization
+        train_op = self.compute_gradient(loss, global_step)
 
         # Merge summaries
         summaries = tf.summary.merge_all()

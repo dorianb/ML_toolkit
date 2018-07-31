@@ -13,6 +13,7 @@ parser.add_argument('--train-size', type=float, help='Training set size', defaul
 parser.add_argument('--validation-size', type=float, help='Validation set size', default=0.2)
 parser.add_argument('--test-size', type=float, help='Test set size', default=0.1)
 parser.add_argument('--train', type=int, help='Training mode', default=1)
+parser.add_argument('--optimizer', type=str, help='Optimizer', default='adam')
 parser.add_argument('--learning-rate', type=float, help='Learning rate', default=0.01)
 parser.add_argument('--debug', type=int, help='Debug mode', default=0)
 args = parser.parse_args()
@@ -49,7 +50,7 @@ try:
                 dim_out=len(classes),
                 grayscale=True, binarize=False, normalize=False,
                 learning_rate=args.learning_rate, n_epochs=1, validation_step=10,
-                is_encoder=False, validation_size=10, optimizer='adam',
+                is_encoder=False, validation_size=10, optimizer=args.optimizer,
                 summary_path=summary_path, checkpoint_path=checkpoint_path,
                 logger=logger, debug=args.debug)
 
