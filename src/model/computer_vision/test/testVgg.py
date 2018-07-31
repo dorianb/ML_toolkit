@@ -6,7 +6,6 @@ from computer_vision.classVgg import Vgg
 ROOT_PATH = os.sep.join(os.path.normpath(os.getcwd()).split(os.path.sep)[:-4])
 DATASET_PATH = os.path.join(ROOT_PATH, "src/model/computer_vision/data/256_ObjectCategories")
 
-
 class VggTestCase(unittest.TestCase):
 
     def test_init(self):
@@ -14,7 +13,8 @@ class VggTestCase(unittest.TestCase):
         vgg_1 = Vgg(classes, batch_size=1, height=224, width=224, dim_out=10,
                     grayscale=True, binarize=True, normalize=False,
                     learning_rate=10, n_epochs=1, validation_step=10,
-                    is_encoder=True, validation_size=10, logger=None)
+                    is_encoder=True, validation_size=10,
+                    summary_path="summary", logger=None)
         self.assertIsNotNone(vgg_1)
 
     def test_load_example(self):
@@ -22,7 +22,8 @@ class VggTestCase(unittest.TestCase):
         vgg_1 = Vgg(classes, batch_size=1, height=224, width=224, dim_out=10,
                     grayscale=True, binarize=True, normalize=False,
                     learning_rate=10, n_epochs=1, validation_step=10,
-                    is_encoder=True, validation_size=10, logger=None)
+                    is_encoder=True, validation_size=10,
+                    summary_path="summary", logger=None)
         example = os.path.join(DATASET_PATH, "002.american-flag", "002_0001.jpg"), 2
         image, label = vgg_1.load_example(example)
         self.assertEqual(image.shape, (224, 224, 1))
@@ -34,6 +35,7 @@ class VggTestCase(unittest.TestCase):
         vgg_1 = Vgg(classes, batch_size=2, height=224, width=224, dim_out=10,
                     grayscale=True, binarize=True, normalize=False,
                     learning_rate=10, n_epochs=1, validation_step=10,
+                    summary_path="summary",
                     is_encoder=True, validation_size=10, logger=None)
         examples = [
             (os.path.join(DATASET_PATH, "002.american-flag", "002_0001.jpg"), 2),

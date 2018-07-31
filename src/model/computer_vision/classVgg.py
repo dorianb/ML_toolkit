@@ -86,10 +86,7 @@ class Vgg(ComputerVision):
                                                       self.learning_rate)
 
         # Summary writers
-        self.train_writer = tf.summary.FileWriter(
-            os.path.join(self.summary_path, 'train'))
-        self.validation_writer = tf.summary.FileWriter(
-            os.path.join(self.summary_path, 'validation'))
+        self.train_writer, self.validation_writer = ComputerVision.get_writer(self)
 
         # Model saver
         self.saver = tf.train.Saver()
@@ -418,7 +415,7 @@ class Vgg(ComputerVision):
                         self.validation_eval()
 
                         # Save the model
-                        ComputerVision.save(self, sess, step=str(epoch * i))
+                        ComputerVision.save(self, sess, step=str(i * (epoch + 1)))
 
     def load_batch(self, examples):
         """
