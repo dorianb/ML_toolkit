@@ -16,8 +16,8 @@ class Vgg(ComputerVision):
     def __init__(self, classes, batch_size=1, height=224, width=224, dim_out=10,
                  grayscale=True, binarize=True, normalize=False,
                  learning_rate=10, n_epochs=1, validation_step=10,
-                 is_encoder=True, validation_size=10, summary_path="",
-                 checkpoint_path="", logger=None, debug=False):
+                 is_encoder=True, validation_size=10, optimizer="adam",
+                 summary_path="", checkpoint_path="", logger=None, debug=False):
         """
         Initialization of the Vgg model.
 
@@ -36,6 +36,7 @@ class Vgg(ComputerVision):
              evaluation on validation dataset
             is_encoder: the vgg is used as an encoder
             validation_size: the number of examples to use for validation
+            optimizer: the optimizer to use
             summary_path: the path to the summary
             checkpoint_path: the path to the checkpoint
             logger: an instance object of logging module.
@@ -62,6 +63,7 @@ class Vgg(ComputerVision):
         self.validation_step = validation_step
         self.is_encoder = is_encoder
         self.validation_size = validation_size
+        self.optimizer_name = optimizer
         self.summary_path = summary_path
         self.checkpoint_path = checkpoint_path
         self.logger = logger
@@ -80,7 +82,8 @@ class Vgg(ComputerVision):
         self.model = self.build_model(self.dim_out)
 
         # Optimizer
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+        self.optimizer = ComputerVision.get_optimizer(self.optimizer_name,
+                                                      self.learning_rate)
 
     @staticmethod
     def initialize_variable(name, shape):
@@ -94,8 +97,8 @@ class Vgg(ComputerVision):
         Returns:
             tensorflow variable
         """
-        initializer = tf.zeros_initializer()
-        # initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
+        # initializer = tf.zeros_initializer()
+        initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
         variable = tf.get_variable(name, shape=shape, dtype=tf.float32,
                                    initializer=initializer)
         Vgg.variable_summaries(variable, name)

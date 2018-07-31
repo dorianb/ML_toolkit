@@ -13,3 +13,6 @@ src/model/computer_vision/data/*
 
 src/model/computer_vision/summaries/vgg/*
 !src/model/computer_vision/summaries/vgg/.gitkeep
+
+src/model/computer_vision/checkpoints/vgg/*
+!src/model/computer_vision/checkpoints/vgg/.gitkeep

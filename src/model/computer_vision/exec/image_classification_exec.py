@@ -49,8 +49,9 @@ try:
                 dim_out=len(classes),
                 grayscale=True, binarize=False, normalize=False,
                 learning_rate=args.learning_rate, n_epochs=1, validation_step=10,
-                is_encoder=False, validation_size=10, summary_path=summary_path,
-                checkpoint_path=checkpoint_path, logger=logger, debug=args.debug)
+                is_encoder=False, validation_size=10, optimizer='adam',
+                summary_path=summary_path, checkpoint_path=checkpoint_path,
+                logger=logger, debug=args.debug)
 
     vgg_1.fit(cd_1.training_set, cd_1.validation_set)
 
