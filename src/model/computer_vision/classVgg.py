@@ -385,6 +385,9 @@ class Vgg(ComputerVision):
 
             self.train_writer.add_graph(sess.graph)
 
+            # Load existing model
+            ComputerVision.load(self, sess)
+
             for epoch in range(self.n_epochs):
 
                 for i in range(self.batch_size, len(training_set), self.batch_size):
@@ -415,7 +418,7 @@ class Vgg(ComputerVision):
                         self.validation_eval()
 
                         # Save the model
-                        ComputerVision.save(self, session, step=str(epoch * i))
+                        ComputerVision.save(self, sess, step=str(epoch * i))
 
     def load_batch(self, examples):
         """
