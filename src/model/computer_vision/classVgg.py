@@ -301,8 +301,10 @@ class Vgg(ComputerVision):
                         summarize=self.n_classes * self.batch_size)       
         loss = tf.reduce_mean(-tf.reduce_sum(prod, axis=-1))              
         """
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
-                              logits=logit, labels=label))
+        # loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
+        #                      logits=logit, labels=label))
+        loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+                                            logits=logit, labels=label))
         # loss = tf.Print(loss, [loss], message='Loss:')
         tf.summary.scalar('Cross_entropy', loss)
         return loss
@@ -368,19 +370,20 @@ class Vgg(ComputerVision):
 
         global_step = tf.Variable(0, dtype=tf.int32)
 
-        # Compute probabilities
-        model = tf.squeeze(self.model)
-        model = tf.Print(model, [model], message="Last layer: ",
-                         summarize=self.n_classes * self.batch_size) if self.debug else model
+        # Network output
+        output = tf.squeeze(self.model)
+        output = tf.Print(output, [output], message="Last layer: ",
+                         summarize=self.n_classes * self.batch_size) if self.debug else output
 
-        logit = tf.nn.softmax(model)
+        # Compute probabilities
+        logit = tf.nn.softmax(output)
         logit = tf.Print(logit, [logit], message="Probabilities: ",
                          summarize=self.n_classes * self.batch_size) if self.debug else logit
         label = tf.Print(self.label, [self.label], message="Truth label: ",
                          summarize=self.n_classes * self.batch_size) if self.debug else self.label
 
         # Loss
-        loss = self.compute_loss(logit, label)
+        loss = self.compute_loss(output, label)
 
         # Accuracy
         accuracy = self.compute_accuracy(logit, label)
