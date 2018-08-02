@@ -1,4 +1,4 @@
-from PIL import Image
+import tensorflow as tf
 import numpy as np
 from skimage.filters import threshold_local
 
@@ -36,6 +36,22 @@ class ComputerVision:
         Returns:
             an array
         """
+        image = tf.image.decode_jpeg(image_path)
+
+        if isinstance(resize_dim, tuple):
+            image = tf.image.resize_bicubic(image, resize_dim)
+
+        if grayscale:
+            image = tf.image.rgb_to_grayscale(image)
+
+        if normalize:
+            mean, var = tf.nn.moments(image, axes=(0, 1))
+            image = tf.divide(
+                tf.subtract(image, mean),
+                tf.sqrt(var)
+            )
+
+        """
         image = Image.open(image_path)
 
         if isinstance(resize_dim, tuple):
@@ -57,8 +73,10 @@ class ComputerVision:
 
         if normalize:
             img = (img - np.mean(img, axis=(0, 1))) / np.std(img, axis=(0, 1))
+            
+        """
 
-        return img
+        return image
 
     def validation_eval(self):
         pass

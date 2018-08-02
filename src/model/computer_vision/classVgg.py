@@ -1,8 +1,8 @@
 import tensorflow as tf
 import numpy as np
-import os
 from time import time
 from computer_vision.classComputerVision import ComputerVision
+from tensorflow.python import debug as tf_debug
 
 
 class Vgg(ComputerVision):
@@ -344,13 +344,11 @@ class Vgg(ComputerVision):
         Returns:
             the training operation
         """
-        """
         grads_and_vars = self.optimizer.compute_gradients(loss)
         self.logger.debug(grads_and_vars) if self.logger else None
         return self.optimizer.apply_gradients(grads_and_vars,
                                               global_step=global_step)
-        """
-        return self.optimizer.minimize(loss)
+        # return self.optimizer.minimize(loss)
 
     def fit(self, training_set, validation_set):
         """
@@ -411,6 +409,8 @@ class Vgg(ComputerVision):
             for epoch in range(self.n_epochs):
 
                 for i in range(self.batch_size, len(training_set), self.batch_size):
+
+                    global_step = tf.add(global_step, tf.constant(1))
 
                     time0 = time()
                     batch_examples = training_set[i - self.batch_size: i]
