@@ -1,3 +1,4 @@
+from PIL import Image
 import tensorflow as tf
 import numpy as np
 from skimage.filters import threshold_local
@@ -36,7 +37,13 @@ class ComputerVision:
         Returns:
             an array
         """
-        image = tf.image.decode_jpeg(image_path)
+
+        """
+        image_reader = tf.WholeFileReader()
+
+        _, contents = image_reader.read(image_queue)
+
+        image = tf.image.decode_jpeg(contents, channels=0)
 
         if isinstance(resize_dim, tuple):
             image = tf.image.resize_bicubic(image, resize_dim)
@@ -73,10 +80,8 @@ class ComputerVision:
 
         if normalize:
             img = (img - np.mean(img, axis=(0, 1))) / np.std(img, axis=(0, 1))
-            
-        """
 
-        return image
+        return img
 
     def validation_eval(self):
         pass
