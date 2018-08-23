@@ -58,3 +58,12 @@ Recurrent Neural Networks.
 ### processing
 
 Processing components
+
+## Data
+
+## MetaData
+
+## Documentation
+
+## Executable
+
