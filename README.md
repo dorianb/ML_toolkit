@@ -33,7 +33,7 @@ model training and prediction are realised using Google ML Engine.
 A couple of process need to be acomplish before deploying pipelines into GCP.
 Firstly, let us define the environment variables:
 ```
-$ cd src/cloud_tools/gcp && . env_variables.sh
+$ cd src/cloud_tools/gcp && . env_variable.sh
 ```
 
 In order to deploy a processing pipeline, execute the following command:

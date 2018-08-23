@@ -368,6 +368,7 @@ def configure_pipeline(p, opt):
       opt.input_path, strip_trailing_newlines=True)
   read_label_source = beam.io.ReadFromText(
       opt.input_dict, strip_trailing_newlines=True)
+  """
   labels = (p | 'Read dictionary' >> read_label_source)
   _ = (p
        | 'Read input' >> read_input_source
@@ -384,6 +385,7 @@ def configure_pipeline(p, opt):
        | 'Save to disk'
        >> beam.io.WriteToTFRecord(opt.output_path,
                                   file_name_suffix='.tfrecord.gz'))
+    """
 
 
 def run(in_args=None):

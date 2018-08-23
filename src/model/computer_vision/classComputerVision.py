@@ -1,3 +1,5 @@
+import os
+from datetime import datetime
 from PIL import Image
 import tensorflow as tf
 import numpy as np
@@ -6,8 +8,17 @@ from skimage.filters import threshold_local
 
 class ComputerVision:
 
-    def __init__(self):
-        pass
+    def __init__(self, summary_path="", checkpoint_path=""):
+        """
+        The initalization of a computer vision model.
+
+        Args:
+            summary_path: the path to the summaries
+            checkpoint_path: the path to the checkpoints
+        """
+        self.summary_path = summary_path
+        self.checkpoint_path = checkpoint_path
+        self.saver = None
 
     def build_model(self):
         pass
@@ -20,6 +31,36 @@ class ComputerVision:
 
     def load_example(self, example):
         pass
+
+    @staticmethod
+    def get_optimizer(name="adam", learning_rate=0.1):
+        """
+        Get the optimizer object corresponding. If unknown optimizer, raise an exception.
+
+        Args:
+            name: name of the optimizer
+            learning_rate: the learning rate
+        Returns:
+            a tensorflow optimizer object
+        """
+        if name == "adam":
+            return tf.train.AdamOptimizer(learning_rate=learning_rate)
+        elif name == "adadelta":
+            return tf.train.AdadeltaOptimizer(learning_rate=learning_rate)
+        else:
+            raise Exception("The optimizer is unknown")
+
+    def get_writer(self):
+        """
+        Get the training and validation summaries writers.
+
+        Returns:
+            Tensorflow FileWriter object
+        """
+        training_path = os.path.join(self.summary_path, "train", str(datetime.now()))
+        validation_path = os.path.join(self.summary_path, "val", str(datetime.now()))
+        return tf.summary.FileWriter(training_path), \
+               tf.summary.FileWriter(validation_path)
 
     @staticmethod
     def load_image(image_path, grayscale=True, binarize=False, normalize=False,
@@ -82,6 +123,19 @@ class ComputerVision:
             img = (img - np.mean(img, axis=(0, 1))) / np.std(img, axis=(0, 1))
 
         return img
+
+    def save(self, session, step):
+        """
+
+        Args:
+            session: the tensorflow session
+            step: the step
+
+        Returns:
+            the path to the saved model
+        """
+        path_to_checkpoint = os.path.join(self.checkpoint_path)
+        return self.saver.save(session, path_to_checkpoint, global_step=step)
 
     def validation_eval(self):
         pass

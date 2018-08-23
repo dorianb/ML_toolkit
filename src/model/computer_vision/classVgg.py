@@ -1,3 +1,4 @@
+import os
 import tensorflow as tf
 import numpy as np
 from time import time
@@ -17,7 +18,7 @@ class Vgg(ComputerVision):
                  grayscale=True, binarize=True, normalize=False,
                  learning_rate=10, n_epochs=1, validation_step=10,
                  is_encoder=True, validation_size=10, optimizer="adam",
-                 summary_path="", checkpoint_path="", logger=None, debug=False):
+                 metadata_path="", name="vgg", logger=None, debug=False):
         """
         Initialization of the Vgg model.
 
@@ -37,8 +38,8 @@ class Vgg(ComputerVision):
             is_encoder: the vgg is used as an encoder
             validation_size: the number of examples to use for validation
             optimizer: the optimizer to use
-            summary_path: the path to the summary
-            checkpoint_path: the path to the checkpoint
+            metadata_path: the path to the metadata
+            name: the name of the object instance
             logger: an instance object of logging module.
             debug: whether the debug mode is activated or not
 
@@ -64,8 +65,9 @@ class Vgg(ComputerVision):
         self.is_encoder = is_encoder
         self.validation_size = validation_size
         self.optimizer_name = optimizer
-        self.summary_path = summary_path
-        self.checkpoint_path = checkpoint_path
+        self.summary_path = os.path.join(metadata_path, "summaries", name)
+        self.checkpoint_path = os.path.join(metadata_path, "checkpoints", name)
+        self.name = name
         self.logger = logger
         self.debug = debug
 

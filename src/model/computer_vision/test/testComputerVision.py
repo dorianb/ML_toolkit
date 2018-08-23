@@ -6,10 +6,24 @@ import tensorflow as tf
 from computer_vision.classComputerVision import ComputerVision
 
 ROOT_PATH = os.sep.join(os.path.normpath(os.getcwd()).split(os.path.sep)[:-4])
-DATASET_PATH = os.path.join(ROOT_PATH, "src/model/computer_vision/data/256_ObjectCategories")
+DATASET_PATH = os.path.join(ROOT_PATH, "data", "256_ObjectCategories")
 
 
 class ComputerVisionTestCase(unittest.TestCase):
+
+    def test_get_optimizer(self):
+
+        computer_vision_1 = ComputerVision()
+        opt_1 = computer_vision_1.get_optimizer(name="adam", learning_rate=0.2)
+        self.assertEqual(type(opt_1).__name__, "AdamOptimizer")
+
+        opt_2 = computer_vision_1.get_optimizer(name="adadelta", learning_rate=0.3)
+        self.assertEqual(type(opt_2).__name__, "AdadeltaOptimizer")
+
+        with self.assertRaises(Exception) as context:
+            _ = computer_vision_1.get_optimizer(name="unknown")
+
+        self.assertTrue("unknown" in str(context.exception))
 
     def test_load_image(self):
 

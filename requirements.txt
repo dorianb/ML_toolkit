@@ -3,4 +3,4 @@ google-cloud-dataflow
 numpy
 Pillow
 scikit-image
-apache_beam
+apache-beam[gcp]

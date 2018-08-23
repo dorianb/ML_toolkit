@@ -5,14 +5,11 @@ venv
 *.json
 .idea
 
-src/model/rnn/data/*
-!src/model/rnn/data/.gitkeep
+data/*
+!data/.gitkeep
 
-src/model/computer_vision/data/*
-!src/model/computer_vision/data/.gitkeep
+metadata/summaries/*
+!metadata/summaries/.gitkeep
 
-src/model/computer_vision/summaries/vgg/*
-!src/model/computer_vision/summaries/vgg/.gitkeep
-
-src/model/computer_vision/checkpoints/vgg/*
-!src/model/computer_vision/checkpoints/vgg/.gitkeep
+metadata/checkpoints/*
+!metadata/checkpoints/.gitkeep

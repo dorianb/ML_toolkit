@@ -3,7 +3,7 @@ import os
 from dataset_utils.CaltechDataset import CaltechDataset
 
 ROOT_PATH = os.sep.join(os.path.normpath(os.getcwd()).split(os.path.sep)[:-4])
-DATASET_PATH = os.path.join(ROOT_PATH, "src/model/computer_vision/data/256_ObjectCategories")
+DATASET_PATH = os.path.join(ROOT_PATH, "data", "256_ObjectCategories")
 
 
 class CaltechDatasetTestCase(unittest.TestCase):
@@ -13,8 +13,8 @@ class CaltechDatasetTestCase(unittest.TestCase):
                                            val_size=0.2, test_size=0.1)
 
         self.assertLess(len(caltech_dataset_1.training_set), 30609 * 0.7)
-        self.assertLess(len(caltech_dataset_1.training_set), 30609 * 0.2)
-        self.assertLess(len(caltech_dataset_1.training_set), 30609 * 0.1)
+        self.assertLess(len(caltech_dataset_1.validation_set), 30609 * 0.2)
+        self.assertLess(len(caltech_dataset_1.test_set), 30609 * 0.1)
 
     def test_get_examples(self):
         caltech_dataset_1 = CaltechDataset(DATASET_PATH)
