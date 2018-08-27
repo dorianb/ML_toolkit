@@ -19,6 +19,7 @@ class ComputerVision:
         self.summary_path = summary_path
         self.checkpoint_path = checkpoint_path
         self.saver = None
+        self.name = "computer_vision"
 
     def build_model(self):
         pass
@@ -124,18 +125,35 @@ class ComputerVision:
 
         return img
 
+    def load(self, session):
+        """
+
+        Args:
+            session: the tensorflow session
+
+        Returns:
+            Nothing
+        """
+        filename = [self.name + "-" + filename.split(self.name)[1].split("-")[1].split(".")[0]
+                    for filename in sorted(os.listdir(self.checkpoint_path))
+                    if self.name in filename].pop()
+        checkpoint_path = os.path.join(self.checkpoint_path, filename)
+        self.saver.restore(session, checkpoint_path)
+
     def save(self, session, step):
         """
 
         Args:
             session: the tensorflow session
-            step: the step
+            step: the global step as a tensor
 
         Returns:
             the path to the saved model
         """
-        path_to_checkpoint = os.path.join(self.checkpoint_path)
-        return self.saver.save(session, path_to_checkpoint, global_step=step)
+        if not os.path.isdir(self.checkpoint_path):
+            os.mkdir(self.checkpoint_path)
+        checkpoint_path = os.path.join(self.checkpoint_path, self.name)
+        return self.saver.save(session, checkpoint_path, global_step=step)
 
     def validation_eval(self):
         pass

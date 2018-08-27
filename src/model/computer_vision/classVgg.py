@@ -18,7 +18,8 @@ class Vgg(ComputerVision):
                  grayscale=True, binarize=True, normalize=False,
                  learning_rate=10, n_epochs=1, validation_step=10,
                  is_encoder=True, validation_size=10, optimizer="adam",
-                 metadata_path="", name="vgg", logger=None, debug=False):
+                 metadata_path="", name="vgg", from_pretrained=False,
+                 logger=None, debug=False):
         """
         Initialization of the Vgg model.
 
@@ -40,6 +41,7 @@ class Vgg(ComputerVision):
             optimizer: the optimizer to use
             metadata_path: the path to the metadata
             name: the name of the object instance
+            from_pretrained: whether to start training from pre-trained model
             logger: an instance object of logging module.
             debug: whether the debug mode is activated or not
 
@@ -68,6 +70,7 @@ class Vgg(ComputerVision):
         self.summary_path = os.path.join(metadata_path, "summaries", name)
         self.checkpoint_path = os.path.join(metadata_path, "checkpoints", name)
         self.name = name
+        self.from_pretrained = from_pretrained
         self.logger = logger
         self.debug = debug
 
@@ -406,7 +409,7 @@ class Vgg(ComputerVision):
             self.train_writer.add_graph(sess.graph)
 
             # Load existing model
-            ComputerVision.load(self, sess)
+            ComputerVision.load(self, sess) if self.from_pretrained else None
 
             for epoch in range(self.n_epochs):
 
@@ -427,7 +430,7 @@ class Vgg(ComputerVision):
                         }
                     )
 
-                    self.logger.info("Writing summary to {0}".format(self.summary_path))
+                    self.logger.info("Writing summary to {0}".format(self.summary_path)) if self.logger else None
                     self.train_writer.add_summary(summaries_value, i * (epoch + 1))
 
                     time1 = time()
@@ -440,7 +443,7 @@ class Vgg(ComputerVision):
                         self.validation_eval()
 
                         # Save the model
-                        ComputerVision.save(self, sess, step=str(i * (epoch + 1)))
+                        ComputerVision.save(self, sess, step=global_step)
 
     def load_batch(self, examples):
         """

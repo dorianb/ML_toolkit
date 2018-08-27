@@ -8,6 +8,7 @@ from dataset_utils.CaltechDataset import CaltechDataset
 
 parser = argparse.ArgumentParser(description='Image classification program')
 parser.add_argument('--dataset-path', type=str, help='Path to the dataset', default=".")
+parser.add_argument('--metadata-path', type=str, help='Path to the metadata', default=".")
 parser.add_argument('--batch-size', type=int, help='Batch size', default=1)
 parser.add_argument('--train-size', type=float, help='Training set size', default=0.7)
 parser.add_argument('--validation-size', type=float, help='Validation set size', default=0.2)
@@ -33,14 +34,6 @@ assert os.path.isdir(args.dataset_path), "{0} is not a valid directory".format(a
 
 try:
 
-    summary_path = os.path.abspath(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
-                     'summaries', 'vgg'))
-    checkpoint_path = os.path.abspath(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
-                     'checkpoints', 'vgg')
-    )
-
     cd_1 = CaltechDataset(args.dataset_path, train_size=args.train_size,
                           val_size=args.validation_size, test_size=args.test_size)
     classes = cd_1.labels
@@ -51,7 +44,7 @@ try:
                 grayscale=True, binarize=False, normalize=False,
                 learning_rate=args.learning_rate, n_epochs=1, validation_step=10,
                 is_encoder=False, validation_size=10, optimizer=args.optimizer,
-                summary_path=summary_path, checkpoint_path=checkpoint_path,
+                metadata_path=args.metadata_path, name='vgg_prod',
                 logger=logger, debug=args.debug)
 
     vgg_1.fit(cd_1.training_set, cd_1.validation_set)
