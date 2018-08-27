@@ -16,6 +16,7 @@ parser.add_argument('--test-size', type=float, help='Test set size', default=0.1
 parser.add_argument('--train', type=int, help='Training mode', default=1)
 parser.add_argument('--optimizer', type=str, help='Optimizer', default='adam')
 parser.add_argument('--learning-rate', type=float, help='Learning rate', default=0.01)
+parser.add_argument('--from-pretrained', type=int, help='Transfer learning mode', default=0)
 parser.add_argument('--debug', type=int, help='Debug mode', default=0)
 args = parser.parse_args()
 
@@ -40,12 +41,11 @@ try:
     classes.update({0: 'ambiguous'})
 
     vgg_1 = Vgg(classes, batch_size=args.batch_size, height=224, width=224,
-                dim_out=len(classes),
-                grayscale=True, binarize=False, normalize=False,
+                dim_out=len(classes), grayscale=True, binarize=False, normalize=False,
                 learning_rate=args.learning_rate, n_epochs=1, validation_step=10,
                 is_encoder=False, validation_size=10, optimizer=args.optimizer,
-                metadata_path=args.metadata_path, name='vgg_prod',
-                logger=logger, debug=args.debug)
+                metadata_path=args.metadata_path, name='vgg_image_classification',
+                from_pretrained=args.from_pretrained, logger=logger, debug=args.debug)
 
     vgg_1.fit(cd_1.training_set, cd_1.validation_set)
 

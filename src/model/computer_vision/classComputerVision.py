@@ -127,6 +127,7 @@ class ComputerVision:
 
     def load(self, session):
         """
+        Load the model variables values.
 
         Args:
             session: the tensorflow session
@@ -142,6 +143,7 @@ class ComputerVision:
 
     def save(self, session, step):
         """
+        Persist the model variables values.
 
         Args:
             session: the tensorflow session
