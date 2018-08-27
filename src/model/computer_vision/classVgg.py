@@ -446,8 +446,8 @@ class Vgg(ComputerVision):
                                    summarize=4) if self.debug else fc7
 
                     filter8 = Vgg.initialize_variable(
-                        "filter8", shape=[1, 1, 4096, 4096])
-                    bias8 = Vgg.initialize_variable("bias8", shape=[4096])
+                        "filter8", shape=[1, 1, 4096, dim_output])
+                    bias8 = Vgg.initialize_variable("bias8", shape=[dim_output])
 
                     fc8 = Vgg.conv_layer(fc7,
                                          filter=filter8,
@@ -544,10 +544,9 @@ class Vgg(ComputerVision):
             raise Exception("Vgg Fit method is implemented for image classification "
                             "purpose only")
 
-        output = self.model
-        # output = tf.squeeze(self.model)
+        output = tf.squeeze(self.model)
         output = tf.Print(output, [output], message="Last layer: ",
-                         summarize=self.n_classes * self.batch_size) if self.debug else output
+                          summarize=self.n_classes * self.batch_size) if self.debug else output
 
         # Compute probabilities
         logit = tf.nn.softmax(output)
