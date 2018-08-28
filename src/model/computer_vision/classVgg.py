@@ -538,7 +538,7 @@ class Vgg(ComputerVision):
                     )
 
                     self.logger.info("Writing summary to {0}".format(self.summary_path)) if self.logger else None
-                    self.train_writer.add_summary(summaries_value, i * (epoch + 1))
+                    self.train_writer.add_summary(summaries_value, self.global_step)
 
                     time1 = time()
                     self.logger.info(
@@ -608,17 +608,23 @@ class Vgg(ComputerVision):
         Returns:
             Nothing
         """
+        summaries_values = []
+
         for i in range(self.batch_size, len(dataset), self.batch_size):
             batch_examples = dataset[i - self.batch_size: i]
             image_batch, label_batch = self.load_batch(batch_examples)
 
-            _ = session.run(
+            summaries_value = session.run(
                 [summaries],
                 feed_dict={
                     self.input: image_batch,
                     self.label: label_batch
                 }
             )
+
+            summaries_values.append(summaries_value)
+
+        self.validation_writer.add_summary(np.mean(summaries_values), self.global_step)
 
     def predict(self, dataset):
         """
