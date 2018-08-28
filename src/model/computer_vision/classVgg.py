@@ -75,11 +75,11 @@ class Vgg(ComputerVision):
 
         # Input
         self.input = tf.placeholder(
-            shape=(self.batch_size, None, None, self.n_channel),
+            shape=(None, None, None, self.n_channel),
             dtype=tf.float32)
 
         # Label
-        self.label = tf.placeholder(shape=(self.batch_size, self.n_classes),
+        self.label = tf.placeholder(shape=(None, self.n_classes),
                                     dtype=tf.float32)
 
         # Build model
@@ -529,8 +529,8 @@ class Vgg(ComputerVision):
 
                     image_batch, label_batch = self.load_batch(batch_examples)
 
-                    _, loss_value, summaries_value, accuracy_value = sess.run([
-                        train_op, loss, summaries, accuracy],
+                    _, loss_value, summaries_value, accuracy_value, step = sess.run([
+                        train_op, loss, summaries, accuracy, self.global_step],
                         feed_dict={
                             self.input: image_batch,
                             self.label: label_batch
@@ -538,17 +538,18 @@ class Vgg(ComputerVision):
                     )
 
                     self.logger.info("Writing summary to {0}".format(self.summary_path)) if self.logger else None
-                    self.train_writer.add_summary(summaries_value, self.global_step)
+                    self.train_writer.add_summary(summaries_value, step)
 
                     time1 = time()
                     self.logger.info(
                         "Accuracy = {0}, Cost = {1} for batch {2} in {3:.2f} seconds".format(
                             accuracy_value, loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
 
-                    if i % self.validation_step == 0:
+                    if step % self.validation_step == 0:
 
                         self.validation_eval(sess, summaries,
-                                             validation_set[:self.validation_size])
+                                             validation_set[:self.validation_size],
+                                             step)
 
                         # Save the model
                         ComputerVision.save(self, sess, step=self.global_step)
@@ -596,7 +597,7 @@ class Vgg(ComputerVision):
 
         return image, label
 
-    def validation_eval(self, session, summaries, dataset):
+    def validation_eval(self, session, summaries, dataset, step):
         """
         Produce evaluation on the validation dataset.
 
@@ -604,27 +605,23 @@ class Vgg(ComputerVision):
             session: the session object opened
             summaries: the summaries declared in the graph
             dataset: the dataset to use for validation
+            step: the step of summarize writing
 
         Returns:
             Nothing
         """
-        summaries_values = []
 
-        for i in range(self.batch_size, len(dataset), self.batch_size):
-            batch_examples = dataset[i - self.batch_size: i]
-            image_batch, label_batch = self.load_batch(batch_examples)
+        images, labels = self.load_batch(dataset)
 
-            summaries_value = session.run(
-                [summaries],
-                feed_dict={
-                    self.input: image_batch,
-                    self.label: label_batch
-                }
-            )
+        summaries_value = session.run(
+            summaries,
+            feed_dict={
+                self.input: images,
+                self.label: labels
+            }
+        )
 
-            summaries_values.append(summaries_value)
-
-        self.validation_writer.add_summary(np.mean(summaries_values), self.global_step)
+        self.validation_writer.add_summary(summaries_value, step)
 
     def predict(self, dataset):
         """

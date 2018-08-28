@@ -157,7 +157,7 @@ class ComputerVision:
         checkpoint_path = os.path.join(self.checkpoint_path, self.name)
         return self.saver.save(session, checkpoint_path, global_step=step)
 
-    def validation_eval(self, session, summaries, dataset):
+    def validation_eval(self, session, summaries, dataset, step):
         pass
 
     def predict(self, dataset):
