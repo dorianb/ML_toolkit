@@ -3,8 +3,6 @@ import tensorflow as tf
 import numpy as np
 from time import time
 from computer_vision.classComputerVision import ComputerVision
-from tensorflow.contrib import slim
-from tensorflow.contrib.slim.nets import vgg
 
 
 class Vgg(ComputerVision):
@@ -87,9 +85,7 @@ class Vgg(ComputerVision):
         # Build model
         self.model = self.build_model(self.dim_out)
 
-        # with slim.arg_scope(vgg.vgg_arg_scope()):
-        #     self.model, end_points = vgg.vgg_16(self.input, num_classes=self.n_classes)
-
+        # Global step
         self.global_step = tf.Variable(0, dtype=tf.int32, name="global_step")
 
         # Optimizer
@@ -153,7 +149,7 @@ class Vgg(ComputerVision):
             a tensor operation
         """
         with tf.name_scope(name, [input]):
-            return activation(tf.add(
+            return activation(tf.nn.bias_add(
                 tf.nn.conv2d(input, filter=filter, strides=strides, padding=padding),
                 bias
             ))
@@ -184,13 +180,9 @@ class Vgg(ComputerVision):
                     "filter1_1", shape=[3, 3, self.n_channel, 64])
                 bias1_1 = Vgg.initialize_variable("bias1_1", shape=[64])
 
-                conv1_1 = Vgg.conv_layer(input,
-                                         filter=filter1_1,
-                                         bias=bias1_1,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv1_1")
+                conv1_1 = Vgg.conv_layer(input, filter=filter1_1, bias=bias1_1,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv1_1")
 
                 conv1_1 = tf.Print(conv1_1, [tf.shape(conv1_1)], message="Conv1_1 shape:",
                                    summarize=4) if self.debug else conv1_1
@@ -199,13 +191,9 @@ class Vgg(ComputerVision):
                     "filter1_2", shape=[3, 3, 64, 64])
                 bias1_2 = Vgg.initialize_variable("bias1_2", shape=[64])
 
-                conv1_2 = Vgg.conv_layer(conv1_1,
-                                         filter=filter1_2,
-                                         bias=bias1_2,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv1_2")
+                conv1_2 = Vgg.conv_layer(conv1_1, filter=filter1_2, bias=bias1_2,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv1_2")
 
                 conv1_2 = tf.Print(conv1_2, [tf.shape(conv1_2)], message="Conv1_2 shape:",
                                    summarize=4) if self.debug else conv1_2
@@ -221,13 +209,9 @@ class Vgg(ComputerVision):
                     "filter2_1", shape=[3, 3, 64, 128])
                 bias2_1 = Vgg.initialize_variable("bias2_1", shape=[128])
 
-                conv2_1 = Vgg.conv_layer(pool1,
-                                         filter=filter2_1,
-                                         bias=bias2_1,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv2_1")
+                conv2_1 = Vgg.conv_layer(pool1, filter=filter2_1, bias=bias2_1,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv2_1")
 
                 conv2_1 = tf.Print(conv2_1, [tf.shape(conv2_1)], message="Conv2_1 shape:",
                                    summarize=4) if self.debug else conv2_1
@@ -236,13 +220,9 @@ class Vgg(ComputerVision):
                     "filter2_2", shape=[3, 3, 128, 128])
                 bias2_2 = Vgg.initialize_variable("bias2_2", shape=[128])
 
-                conv2_2 = Vgg.conv_layer(conv2_1,
-                                         filter=filter2_2,
-                                         bias=bias2_2,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv2_2")
+                conv2_2 = Vgg.conv_layer(conv2_1, filter=filter2_2, bias=bias2_2,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv2_2")
 
                 conv2_2 = tf.Print(conv2_2, [tf.shape(conv2_2)], message="Conv2_2 shape:",
                                    summarize=4) if self.debug else conv2_2
@@ -258,13 +238,10 @@ class Vgg(ComputerVision):
                     "filter3_1", shape=[3, 3, 128, 256])
                 bias3_1 = Vgg.initialize_variable("bias3_1", shape=[256])
 
-                conv3_1 = Vgg.conv_layer(pool2,
-                                         filter=filter3_1,
-                                         bias=bias3_1,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv3_1")
+                conv3_1 = Vgg.conv_layer(pool2, filter=filter3_1, bias=bias3_1,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv3_1")
+
                 conv3_1 = tf.Print(conv3_1, [tf.shape(conv3_1)], message="conv3_1 shape:",
                                    summarize=4) if self.debug else conv3_1
 
@@ -272,13 +249,9 @@ class Vgg(ComputerVision):
                     "filter3_2", shape=[3, 3, 256, 256])
                 bias3_2 = Vgg.initialize_variable("bias3_2", shape=[256])
 
-                conv3_2 = Vgg.conv_layer(conv3_1,
-                                         filter=filter3_2,
-                                         bias=bias3_2,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv3_2")
+                conv3_2 = Vgg.conv_layer(conv3_1, filter=filter3_2, bias=bias3_2,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv3_2")
 
                 conv3_2 = tf.Print(conv3_2, [tf.shape(conv3_2)], message="conv3_2 shape:",
                                    summarize=4) if self.debug else conv3_2
@@ -287,13 +260,9 @@ class Vgg(ComputerVision):
                     "filter3_3", shape=[3, 3, 256, 256])
                 bias3_3 = Vgg.initialize_variable("bias3_3", shape=[256])
 
-                conv3_3 = Vgg.conv_layer(conv3_2,
-                                         filter=filter3_3,
-                                         bias=bias3_3,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv3_3")
+                conv3_3 = Vgg.conv_layer(conv3_2, filter=filter3_3, bias=bias3_3,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv3_3")
 
                 conv3_3 = tf.Print(conv3_3, [tf.shape(conv3_3)], message="Conv3_3 shape:",
                                    summarize=4) if self.debug else conv3_3
@@ -309,13 +278,9 @@ class Vgg(ComputerVision):
                     "filter4_1", shape=[3, 3, 256, 512])
                 bias4_1 = Vgg.initialize_variable("bias4_1", shape=[512])
 
-                conv4_1 = Vgg.conv_layer(pool3,
-                                         filter=filter4_1,
-                                         bias=bias4_1,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv4_1")
+                conv4_1 = Vgg.conv_layer(pool3, filter=filter4_1, bias=bias4_1,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv4_1")
 
                 conv4_1 = tf.Print(conv4_1, [tf.shape(conv4_1)], message="Conv4_1 shape:",
                                    summarize=4) if self.debug else conv4_1
@@ -324,13 +289,9 @@ class Vgg(ComputerVision):
                     "filter4_2", shape=[3, 3, 512, 512])
                 bias4_2 = Vgg.initialize_variable("bias4_2", shape=[512])
 
-                conv4_2 = Vgg.conv_layer(conv4_1,
-                                         filter=filter4_2,
-                                         bias=bias4_2,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv4_2")
+                conv4_2 = Vgg.conv_layer(conv4_1, filter=filter4_2, bias=bias4_2,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv4_2")
 
                 conv4_2 = tf.Print(conv4_2, [tf.shape(conv4_2)], message="Conv4_2 shape:",
                                    summarize=4) if self.debug else conv4_2
@@ -339,13 +300,9 @@ class Vgg(ComputerVision):
                     "filter4_3", shape=[3, 3, 512, 512])
                 bias4_3 = Vgg.initialize_variable("bias4_3", shape=[512])
 
-                conv4_3 = Vgg.conv_layer(conv4_2,
-                                         filter=filter4_3,
-                                         bias=bias4_3,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv4_3")
+                conv4_3 = Vgg.conv_layer(conv4_2, filter=filter4_3, bias=bias4_3,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv4_3")
 
                 conv4_3 = tf.Print(conv4_3, [tf.shape(conv4_3)], message="Conv4_3 shape:",
                                    summarize=4) if self.debug else conv4_3
@@ -361,13 +318,9 @@ class Vgg(ComputerVision):
                     "filter5_1", shape=[3, 3, 512, 512])
                 bias5_1 = Vgg.initialize_variable("bias5_1", shape=[512])
 
-                conv5_1 = Vgg.conv_layer(pool4,
-                                         filter=filter5_1,
-                                         bias=bias5_1,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv5_1")
+                conv5_1 = Vgg.conv_layer(pool4, filter=filter5_1, bias=bias5_1,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv5_1")
 
                 conv5_1 = tf.Print(conv5_1, [tf.shape(conv5_1)], message="Conv5_1 shape:",
                                    summarize=4) if self.debug else conv5_1
@@ -376,13 +329,9 @@ class Vgg(ComputerVision):
                     "filter5_2", shape=[3, 3, 512, 512])
                 bias5_2 = Vgg.initialize_variable("bias5_2", shape=[512])
 
-                conv5_2 = Vgg.conv_layer(conv5_1,
-                                         filter=filter5_2,
-                                         bias=bias5_2,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv5_2")
+                conv5_2 = Vgg.conv_layer(conv5_1, filter=filter5_2, bias=bias5_2,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv5_2")
 
                 conv5_2 = tf.Print(conv5_2, [tf.shape(conv5_2)], message="Conv5_2 shape:",
                                    summarize=4) if self.debug else conv5_2
@@ -391,20 +340,16 @@ class Vgg(ComputerVision):
                     "filter5_3", shape=[3, 3, 512, 512])
                 bias5_3 = Vgg.initialize_variable("bias5_3", shape=[512])
 
-                conv5_3 = Vgg.conv_layer(conv5_2,
-                                         filter=filter5_3,
-                                         bias=bias5_3,
-                                         strides=[1, 1, 1, 1],
-                                         padding='SAME',
-                                         activation=tf.nn.relu,
-                                         name="conv5_3")
+                conv5_3 = Vgg.conv_layer(conv5_2, filter=filter5_3, bias=bias5_3,
+                                         strides=[1, 1, 1, 1], padding='SAME',
+                                         activation=tf.nn.relu, name="conv5_3")
 
                 conv5_3 = tf.Print(conv5_3, [tf.shape(conv5_3)], message="Conv5_3 shape:",
                                    summarize=4) if self.debug else conv5_3
 
                 # Max pooling2D
                 pool5 = tf.nn.max_pool(conv5_3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                                         padding='SAME', name="pool5")
+                                       padding='SAME', name="pool5")
                 pool5 = tf.Print(pool5, [tf.shape(pool5)], message="Pool 5 shape:",
                                  summarize=4) if self.debug else pool5
 
@@ -413,20 +358,18 @@ class Vgg(ComputerVision):
                     "filter6", shape=[7, 7, 512, 4096])
                 bias6 = Vgg.initialize_variable("bias6", shape=[4096])
 
-                fc6 = Vgg.conv_layer(pool5,
-                                     filter=filter6,
-                                     bias=bias6,
-                                     strides=[1, 1, 1, 1],
-                                     padding=fc_padding,
-                                     activation=tf.nn.relu,
-                                     name="fc6")
+                fc6 = Vgg.conv_layer(pool5, filter=filter6, bias=bias6,
+                                     strides=[1, 1, 1, 1], padding=fc_padding,
+                                     activation=tf.nn.relu, name="fc6")
 
                 fc6 = tf.Print(fc6, [tf.shape(fc6)], message="fc6 shape:",
                                 summarize=4) if self.debug else fc6
 
+                dropout6 = tf.nn.dropout(fc6, keep_prob=0.5, name="dropout6")
+
                 if self.is_encoder:
 
-                    return fc6
+                    return dropout6
 
                 else:
 
@@ -434,28 +377,22 @@ class Vgg(ComputerVision):
                         "filter7", shape=[1, 1, 4096, 4096])
                     bias7 = Vgg.initialize_variable("bias7", shape=[4096])
 
-                    fc7 = Vgg.conv_layer(fc6,
-                                         filter=filter7,
-                                         bias=bias7,
-                                         strides=[1, 1, 1, 1],
-                                         padding=fc_padding,
-                                         activation=tf.nn.relu,
-                                         name="fc7")
+                    fc7 = Vgg.conv_layer(dropout6, filter=filter7, bias=bias7,
+                                         strides=[1, 1, 1, 1], padding=fc_padding,
+                                         activation=tf.nn.relu, name="fc7")
 
                     fc7 = tf.Print(fc7, [tf.shape(fc7)], message="fc7 shape:",
                                    summarize=4) if self.debug else fc7
+
+                    dropout7 = tf.nn.dropout(fc7, keep_prob=0.5, name="dropout7")
 
                     filter8 = Vgg.initialize_variable(
                         "filter8", shape=[1, 1, 4096, dim_output])
                     bias8 = Vgg.initialize_variable("bias8", shape=[dim_output])
 
-                    fc8 = Vgg.conv_layer(fc7,
-                                         filter=filter8,
-                                         bias=bias8,
-                                         strides=[1, 1, 1, 1],
-                                         padding=fc_padding,
-                                         activation=tf.nn.relu,
-                                         name="fc8")
+                    fc8 = Vgg.conv_layer(dropout7, filter=filter8, bias=bias8,
+                                         strides=[1, 1, 1, 1], padding=fc_padding,
+                                         activation=tf.identity, name="fc8")
 
                     fc8 = tf.Print(fc8, [tf.shape(fc8)], message="fc8 shape:",
                                    summarize=4) if self.debug else fc8
