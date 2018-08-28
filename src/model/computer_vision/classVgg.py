@@ -63,6 +63,7 @@ class Vgg(ComputerVision):
         self.learning_rate = learning_rate
         self.n_epochs = n_epochs
         self.validation_step = validation_step
+        self.checkpoint_step = validation_step * 10
         self.is_encoder = is_encoder
         self.validation_size = validation_size
         self.optimizer_name = optimizer
@@ -545,13 +546,14 @@ class Vgg(ComputerVision):
                         "Accuracy = {0}, Cost = {1} for batch {2} in {3:.2f} seconds".format(
                             accuracy_value, loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
 
-                    if step % self.validation_step == 0:
+                    if i % self.validation_step == 0:
 
                         self.validation_eval(sess, summaries,
                                              validation_set[:self.validation_size],
                                              step)
 
-                        # Save the model
+                    if i % self.checkpoint_step == 0:
+
                         ComputerVision.save(self, sess, step=self.global_step)
 
     def load_batch(self, examples):

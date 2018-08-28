@@ -13,7 +13,7 @@ class VggTestCase(unittest.TestCase):
         classes = {0: 'ambiguous', 1: 'bird', 2: 'sheep'}
         vgg_1 = Vgg(classes, batch_size=1, height=224, width=224, dim_out=10,
                     grayscale=True, binarize=True, normalize=False,
-                    learning_rate=10, n_epochs=1, validation_step=10,
+                    learning_rate=10, n_epochs=1, validation_step=1,
                     is_encoder=True, validation_size=10,
                     metadata_path=METADATA_PATH, logger=None)
         self.assertIsNotNone(vgg_1)
@@ -22,7 +22,7 @@ class VggTestCase(unittest.TestCase):
         classes = {0: 'ambiguous', 1: 'bird', 2: 'sheep'}
         vgg_1 = Vgg(classes, batch_size=1, height=224, width=224, dim_out=10,
                     grayscale=True, binarize=True, normalize=False,
-                    learning_rate=10, n_epochs=1, validation_step=10,
+                    learning_rate=10, n_epochs=1, validation_step=1,
                     is_encoder=True, validation_size=10,
                     metadata_path=METADATA_PATH, logger=None)
         example = os.path.join(DATASET_PATH, "002.american-flag", "002_0001.jpg"), 2
@@ -35,7 +35,7 @@ class VggTestCase(unittest.TestCase):
         classes = {0: 'ambiguous', 1: 'bird', 2: 'sheep'}
         vgg_1 = Vgg(classes, batch_size=2, height=224, width=224, dim_out=10,
                     grayscale=True, binarize=True, normalize=False,
-                    learning_rate=10, n_epochs=1, validation_step=10,
+                    learning_rate=10, n_epochs=1, validation_step=1,
                     metadata_path=METADATA_PATH,
                     is_encoder=True, validation_size=10, logger=None)
         examples = [
