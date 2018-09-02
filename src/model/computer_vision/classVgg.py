@@ -16,9 +16,9 @@ class Vgg(ComputerVision):
     def __init__(self, classes, batch_size=1, height=224, width=224, dim_out=10,
                  grayscale=True, binarize=True, normalize=False,
                  learning_rate=10, n_epochs=1, validation_step=10,
-                 is_encoder=True, validation_size=10, optimizer="adam",
-                 metadata_path="", name="vgg", from_pretrained=False,
-                 logger=None, debug=False):
+                 checkpoint_step=100, is_encoder=True, validation_size=10,
+                 optimizer="adam", metadata_path="", name="vgg",
+                 from_pretrained=False, logger=None, debug=False):
         """
         Initialization of the Vgg model.
 
@@ -34,7 +34,9 @@ class Vgg(ComputerVision):
             learning_rate: the learning rate applied in the gradient descent optimization
             n_epochs: the number of epochs
             validation_step: the number of training examples to use for training before
-             evaluation on validation dataset
+                evaluation on validation dataset
+            checkpoint_step: the number of batch training examples to use before
+                checkpoint
             is_encoder: the vgg is used as an encoder
             validation_size: the number of examples to use for validation
             optimizer: the optimizer to use
@@ -63,7 +65,7 @@ class Vgg(ComputerVision):
         self.learning_rate = learning_rate
         self.n_epochs = n_epochs
         self.validation_step = validation_step
-        self.checkpoint_step = validation_step * 10
+        self.checkpoint_step = checkpoint_step
         self.is_encoder = is_encoder
         self.validation_size = validation_size
         self.optimizer_name = optimizer
@@ -82,6 +84,8 @@ class Vgg(ComputerVision):
         # Label
         self.label = tf.placeholder(shape=(None, self.n_classes),
                                     dtype=tf.float32)
+        self.label = tf.Print(self.label, [self.label], message="Truth label: ",
+                              summarize=self.n_classes * self.batch_size) if self.debug else self.label
 
         # Build model
         self.model = self.build_model(self.dim_out)
@@ -398,7 +402,16 @@ class Vgg(ComputerVision):
                     fc8 = tf.Print(fc8, [tf.shape(fc8)], message="fc8 shape:",
                                    summarize=4) if self.debug else fc8
 
-                    return fc8
+                    output = tf.squeeze(fc8)
+                    output = tf.Print(output, [output], message="Last layer: ",
+                                      summarize=self.n_classes * self.batch_size) if self.debug else output
+
+                    # Compute probabilities
+                    logit = tf.nn.softmax(output)
+                    logit = tf.Print(logit, [logit], message="Probabilities: ",
+                                     summarize=self.n_classes * self.batch_size) if self.debug else logit
+
+                    return logit
 
     def compute_loss(self, logit, label):
         """
@@ -482,22 +495,11 @@ class Vgg(ComputerVision):
             raise Exception("Vgg Fit method is implemented for image classification "
                             "purpose only")
 
-        output = tf.squeeze(self.model)
-        output = tf.Print(output, [output], message="Last layer: ",
-                          summarize=self.n_classes * self.batch_size) if self.debug else output
-
-        # Compute probabilities
-        logit = tf.nn.softmax(output)
-        logit = tf.Print(logit, [logit], message="Probabilities: ",
-                         summarize=self.n_classes * self.batch_size) if self.debug else logit
-        label = tf.Print(self.label, [self.label], message="Truth label: ",
-                         summarize=self.n_classes * self.batch_size) if self.debug else self.label
-
         # Loss
-        loss = self.compute_loss(output, label)
+        loss = self.compute_loss(self.model, self.label)
 
         # Accuracy
-        accuracy = self.compute_accuracy(logit, label)
+        accuracy = self.compute_accuracy(self.model, self.label)
 
         # Optimization
         train_op = self.compute_gradient(loss, self.global_step)
@@ -635,4 +637,4 @@ class Vgg(ComputerVision):
         Returns:
             predictions array
         """
-        pass
+

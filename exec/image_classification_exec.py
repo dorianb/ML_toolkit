@@ -43,8 +43,9 @@ try:
     vgg_1 = Vgg(classes, batch_size=args.batch_size, height=224, width=224,
                 dim_out=len(classes), grayscale=True, binarize=False, normalize=False,
                 learning_rate=args.learning_rate, n_epochs=1, validation_step=10,
-                is_encoder=False, validation_size=10, optimizer=args.optimizer,
-                metadata_path=args.metadata_path, name='vgg_image_classification',
+                checkpoint_step=100, is_encoder=False, validation_size=10,
+                optimizer=args.optimizer, metadata_path=args.metadata_path,
+                name='vgg_image_classification',
                 from_pretrained=args.from_pretrained, logger=logger, debug=args.debug)
 
     vgg_1.fit(cd_1.training_set, cd_1.validation_set)

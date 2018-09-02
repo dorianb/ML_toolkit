@@ -66,8 +66,8 @@ class VggTestCase(unittest.TestCase):
         vgg_1 = Vgg(classes, batch_size=2, height=224, width=224, dim_out=len(classes),
                     grayscale=True, binarize=True, normalize=False,
                     learning_rate=10, n_epochs=1, validation_step=1,
-                    metadata_path=METADATA_PATH, is_encoder=False,
-                    validation_size=10, logger=None)
+                    checkpoint_step=1, metadata_path=METADATA_PATH,
+                    is_encoder=False, validation_size=10, logger=None)
         vgg_1.fit(training_set, validation_set)
         self.assertTrue(True)
 
