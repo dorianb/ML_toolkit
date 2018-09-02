@@ -18,7 +18,9 @@ class ComputerVision:
         """
         self.summary_path = summary_path
         self.checkpoint_path = checkpoint_path
+        self.global_step = None
         self.saver = None
+        self.logger = None
         self.name = "computer_vision"
 
     def build_model(self):
@@ -135,12 +137,18 @@ class ComputerVision:
         Returns:
             Nothing
         """
-        filename = [self.name + "-" + str(step) for step in
-                    sorted([int(filename.split(self.name)[1].split("-")[1].split(".")[0])
-                    for filename in os.listdir(self.checkpoint_path)
-                    if self.name in filename])].pop()
+        step = sorted([
+            int(filename.split(self.name)[1].split("-")[1].split(".")[0])
+            for filename in os.listdir(self.checkpoint_path)
+            if self.name in filename
+        ]).pop()
+        filename = self.name + "-" + str(step)
         checkpoint_path = os.path.join(self.checkpoint_path, filename)
         self.saver.restore(session, checkpoint_path)
+        self.global_step = self.global_step.assign(step)
+        step = session.run(self.global_step)
+        self.logger.info("Loaded model from %s at step %d" % (filename, step)
+                         ) if self.logger else None
 
     def save(self, session, step):
         """
