@@ -61,6 +61,13 @@ Processing components
 
 ## Data
 
+### Caltech-256
+
+The Caltech-256 dataset contains 30 thousand images for 256 object categories. Images are in jpeg file format. Each 
+object category counts at least 80 images.
+
+For further information, follow this link: www.vision.caltech.edu/Image_Datasets/Caltech256/
+
 ## MetaData
 
 ## Documentation
