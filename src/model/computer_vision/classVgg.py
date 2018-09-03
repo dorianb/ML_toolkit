@@ -424,17 +424,8 @@ class Vgg(ComputerVision):
         Returns:
             loss: the loss
         """
-        """                                                               
-        prod = tf.multiply(label, tf.log(logit))                          
-        prod = tf.Print(prod, [prod], message="Prod: ",                   
-                        summarize=self.n_classes * self.batch_size)       
-        loss = tf.reduce_mean(-tf.reduce_sum(prod, axis=-1))              
-        """
-        # loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
-        #                      logits=logit, labels=label))
-        loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
                                             logits=logit, labels=label))
-        # loss = tf.Print(loss, [loss], message='Loss:')
         tf.summary.scalar('Cross_entropy', loss)
         return loss
 
@@ -457,8 +448,8 @@ class Vgg(ComputerVision):
                         summarize=2) if self.debug else pred
         y = tf.Print(y, [y], message="Label: ",
                      summarize=2) if self.debug else y
+
         accuracy = tf.reduce_mean(tf.cast(tf.equal(y, pred), "float"))
-        # accuracy = tf.metrics.accuracy(labels=y, predictions=pred)
         tf.summary.scalar('Accuracy', accuracy)
 
         return accuracy
@@ -477,7 +468,6 @@ class Vgg(ComputerVision):
         self.logger.debug(grads_and_vars) if self.logger else None
         return self.optimizer.apply_gradients(grads_and_vars,
                                               global_step=global_step)
-        # return self.optimizer.minimize(loss)
 
     def fit(self, training_set, validation_set):
         """
