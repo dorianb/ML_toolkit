@@ -2,7 +2,7 @@ import os
 from dataset_utils.Dataset import Dataset
 
 
-class CaltechDataset(Dataset):
+class ImageClassificationDataset(Dataset):
 
     def __init__(self, path, train_size=0.7, val_size=0.2, test_size=0.1):
         """

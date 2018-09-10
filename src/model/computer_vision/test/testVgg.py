@@ -4,7 +4,7 @@ from computer_vision.classVgg import Vgg
 
 
 ROOT_PATH = os.sep.join(os.path.normpath(os.getcwd()).split(os.path.sep)[:-4])
-DATASET_PATH = os.path.join(ROOT_PATH, "data", "256_ObjectCategories")
+DATASET_PATH = os.path.join(ROOT_PATH, "data", "Caltech256")
 METADATA_PATH = os.path.join(ROOT_PATH, "metadata")
 
 class VggTestCase(unittest.TestCase):

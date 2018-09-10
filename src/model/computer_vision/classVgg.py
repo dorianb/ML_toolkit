@@ -406,12 +406,7 @@ class Vgg(ComputerVision):
                     output = tf.Print(output, [output], message="Last layer: ",
                                       summarize=self.n_classes * self.batch_size) if self.debug else output
 
-                    # Compute probabilities
-                    logit = tf.nn.softmax(output)
-                    logit = tf.Print(logit, [logit], message="Probabilities: ",
-                                     summarize=self.n_classes * self.batch_size) if self.debug else logit
-
-                    return logit
+                    return output
 
     def compute_loss(self, logit, label):
         """
@@ -424,8 +419,12 @@ class Vgg(ComputerVision):
         Returns:
             loss: the loss
         """
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
-                                            logits=logit, labels=label))
+        loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=logit, labels=label
+        ))
+        # loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
+        #    logits=logit, labels=label
+        #))
         tf.summary.scalar('Cross_entropy', loss)
         return loss
 
@@ -488,8 +487,13 @@ class Vgg(ComputerVision):
         # Loss
         loss = self.compute_loss(self.model, self.label)
 
+        # Compute probabilities
+        logit = tf.nn.softmax(self.model)
+        logit = tf.Print(logit, [logit], message="Probabilities: ",
+                         summarize=self.n_classes * self.batch_size) if self.debug else logit
+
         # Accuracy
-        accuracy = self.compute_accuracy(self.model, self.label)
+        accuracy = self.compute_accuracy(logit, self.label)
 
         # Optimization
         train_op = self.compute_gradient(loss, self.global_step)
@@ -604,7 +608,6 @@ class Vgg(ComputerVision):
         Returns:
             Nothing
         """
-
         images, labels = self.load_batch(dataset)
 
         summaries_value = session.run(

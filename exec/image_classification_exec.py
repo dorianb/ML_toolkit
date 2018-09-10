@@ -4,7 +4,7 @@ import os
 import traceback
 
 from computer_vision.classVgg import Vgg
-from dataset_utils.CaltechDataset import CaltechDataset
+from dataset_utils.ImageClassificationDataset import ImageClassificationDataset
 
 parser = argparse.ArgumentParser(description='Image classification program')
 parser.add_argument('--dataset-path', type=str, help='Path to the dataset', default=".")
@@ -35,8 +35,9 @@ assert os.path.isdir(args.dataset_path), "{0} is not a valid directory".format(a
 
 try:
 
-    cd_1 = CaltechDataset(args.dataset_path, train_size=args.train_size,
-                          val_size=args.validation_size, test_size=args.test_size)
+    cd_1 = ImageClassificationDataset(
+        args.dataset_path, train_size=args.train_size,
+        val_size=args.validation_size, test_size=args.test_size)
     classes = cd_1.labels
     classes.update({0: 'ambiguous'})
 

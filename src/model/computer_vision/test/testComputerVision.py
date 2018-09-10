@@ -6,7 +6,7 @@ import tensorflow as tf
 from computer_vision.classComputerVision import ComputerVision
 
 ROOT_PATH = os.sep.join(os.path.normpath(os.getcwd()).split(os.path.sep)[:-4])
-DATASET_PATH = os.path.join(ROOT_PATH, "data", "256_ObjectCategories")
+DATASET_PATH = os.path.join(ROOT_PATH, "data", "Caltech256")
 
 
 class ComputerVisionTestCase(unittest.TestCase):
