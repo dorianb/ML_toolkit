@@ -17,6 +17,7 @@ parser.add_argument('--train', type=int, help='Training mode', default=1)
 parser.add_argument('--optimizer', type=str, help='Optimizer', default='adam')
 parser.add_argument('--learning-rate', type=float, help='Learning rate', default=0.01)
 parser.add_argument('--from-pretrained', type=int, help='Transfer learning mode', default=0)
+parser.add_argument('--name', type=str, help='The unique name of the program', default="vgg")
 parser.add_argument('--debug', type=int, help='Debug mode', default=0)
 args = parser.parse_args()
 
@@ -46,8 +47,8 @@ try:
                 learning_rate=args.learning_rate, n_epochs=1, validation_step=10,
                 checkpoint_step=100, is_encoder=False, validation_size=10,
                 optimizer=args.optimizer, metadata_path=args.metadata_path,
-                name='vgg_image_classification',
-                from_pretrained=args.from_pretrained, logger=logger, debug=args.debug)
+                name=args.name, from_pretrained=args.from_pretrained,
+                logger=logger, debug=args.debug)
 
     vgg_1.fit(cd_1.training_set, cd_1.validation_set)
 

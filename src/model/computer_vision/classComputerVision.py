@@ -50,6 +50,10 @@ class ComputerVision:
             return tf.train.AdamOptimizer(learning_rate=learning_rate)
         elif name == "adadelta":
             return tf.train.AdadeltaOptimizer(learning_rate=learning_rate)
+        elif name == "gradientdescent":
+            return tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+        elif name == "rmsprop":
+            return tf.train.RMSPropOptimizer(learning_rate=learning_rate)
         else:
             raise Exception("The optimizer is unknown")
 
