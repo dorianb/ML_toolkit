@@ -5,12 +5,13 @@ setup(
     version='1.0',
     packages=['rnn', 'computer_vision',
               'gcp',
-              'dataset_utils'],
+              'dataset_utils', 'variable_selection'],
     package_dir={
         'rnn': 'src/model/rnn',
         'computer_vision': 'src/model/computer_vision',
         'gcp': 'src/cloud_tools/gcp',
-        'dataset_utils': 'src/processing/dataset_utils'
+        'dataset_utils': 'src/processing/dataset_utils',
+        'variable_selection': 'src/processing/variable_selection'
     },
     author='Dorian Bagur',
     author_email='dorian.bagur@gmail.com',

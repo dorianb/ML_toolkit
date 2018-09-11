@@ -1,6 +1,6 @@
 import unittest
 import os
-from dataset_utils.ImageClassificationDataset import ImageClassificationDataset
+from dataset_utils.classImageClassificationDataset import ImageClassificationDataset
 
 ROOT_PATH = os.sep.join(os.path.normpath(os.getcwd()).split(os.path.sep)[:-4])
 DATASET_PATH = os.path.join(ROOT_PATH, "data", "Caltech256")

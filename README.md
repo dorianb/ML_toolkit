@@ -68,6 +68,14 @@ object category counts at least 80 images.
 
 For further information, follow this link: www.vision.caltech.edu/Image_Datasets/Caltech256/
 
+### Natural image
+
+This dataset contains 6,899 images from 8 distinct classes 
+compiled from various sources. The classes include airplane,
+car, cat, dog, flower, fruit, motorbike and person. 
+
+For further information, follow this link: https://www.kaggle.com/prasunroy/natural-images
+
 ## MetaData
 
 ## Documentation

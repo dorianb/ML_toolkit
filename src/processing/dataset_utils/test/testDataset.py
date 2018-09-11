@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from dataset_utils.Dataset import Dataset
+from dataset_utils.classDataset import Dataset
 
 class DatasetTestCase(unittest.TestCase):
 

@@ -4,7 +4,7 @@ import os
 import traceback
 
 from computer_vision.classVgg import Vgg
-from dataset_utils.ImageClassificationDataset import ImageClassificationDataset
+from dataset_utils.classImageClassificationDataset import ImageClassificationDataset
 
 parser = argparse.ArgumentParser(description='Image classification program')
 parser.add_argument('--dataset-path', type=str, help='Path to the dataset', default=".")
