@@ -2,27 +2,40 @@ import pandas as pd
 import numpy as np
 
 
-def information_value(X, y, power_prediction_threshold=0.02):
+def information_value(X, y):
     """
     Compute the information value for a categorical variable and a binary variable to predict.
+    Information value of a categorical variable has the following power prediction meaning:
+
+        < 0.02 useless for prediction
+
+        0.02 to 0.1 week predictor
+
+        0.1 to 0.3 medium predictor
+
+        0.3 to 0.5 strong predictor
+
+        > 0.5 suspicious or to good to be true
 
     Args:
         X: a pandas serie representing a categorical variable
         y: a pandas serie representing a binary variable to predict
-        power_prediction_threshold: the power prediction measure from which X is considered
-            explainable of y.
+
     Returns:
         a boolean meaning the variable is explainable or not in regard of the threshold
     """
     X = pd.Series(X)
     y = pd.Series(y)
 
-    K = X.nunique()
+    K = X.unique()
     classes = y.unique()
-    iv = [((y[X == k] == classes[1]).sum() - (y[X == k] == classes[0]).sum())
-        * np.log((y[X == k] == classes[1]).sum() / (y[X == k] == classes[0]).sum())
-          for k in K].sum()
-    return iv > power_prediction_threshold
+
+    iv = []
+    for k in K:
+        dist_good = (y[X == k] == classes[1]).sum() / (y == classes[1]).sum()
+        dist_bad = (y[X == k] == classes[0]).sum() / (y == classes[0]).sum()
+        iv.append((dist_good - dist_bad) / np.log(dist_good / dist_bad))
+    return sum(iv)
 
 
 def fisher_score(X, y):
