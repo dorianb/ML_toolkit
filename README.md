@@ -59,6 +59,18 @@ Recurrent Neural Networks.
 
 Processing components
 
+#### /dataset_utils
+
+The dataset utils module aims at normalizing access to the dataset.
+From dataset loading in memory to train-test splitting, the module exposes all 
+the needed utilities for serveral kind of machine learning models.
+
+#### /variable_selection
+
+Variable selection or the process of reducing the number of variable used by a model is
+often a good manner to improve a model stability and performance. In this module, several
+methods are implemented in order to be used by all kind of models.
+
 ## Data
 
 ### Caltech-256

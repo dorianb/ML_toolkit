@@ -1,7 +1,8 @@
 import unittest
 import pandas as pd
 import numpy as np
-from variable_selection.functionClassificationVariableSelection  import information_value, fisher_score
+from variable_selection.functionClassificationVariableSelection import information_value, fisher_score
+
 
 class ClassificationVariableSelectionTestCase(unittest.TestCase):
 
