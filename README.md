@@ -69,6 +69,11 @@ $ gcloud ml-engine jobs submit training "$JOB_NAME" \
     --train_data_paths "${GCS_PATH}/preproc/train*"
 ```
 
+You can follow up the training steps with tensorboard:
+```
+$ tensorboard --logdir=$GCS_PATH/training
+```
+
 Export the model:
 ```
 $ gcloud ml-engine models create "$MODEL_NAME" \
@@ -85,6 +90,7 @@ $ gcloud ml-engine versions create "$VERSION_NAME" \
 
 Make a prediction from an image:
 ```
+$ cd data/flowers
 $ python -c 'import base64, sys, json; img = base64.b64encode(open(sys.argv[1], "rb").read()); print json.dumps({"key":"0", "image_bytes": {"b64": img}})' daisy.jpg &> request.json
 $ gcloud ml-engine predict --model ${MODEL_NAME} --json-instances request.json
 ```
