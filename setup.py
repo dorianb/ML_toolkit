@@ -4,12 +4,12 @@ setup(
     name='ML_toolkit',
     version='1.0',
     packages=['rnn', 'computer_vision',
-              'gcp',
+              'gcp_example',
               'dataset_utils', 'variable_selection'],
     package_dir={
         'rnn': 'src/model/rnn',
         'computer_vision': 'src/model/computer_vision',
-        'gcp': 'src/cloud_tools/gcp',
+        'gcp_example': 'src/cloud_tools/gcp/example',
         'dataset_utils': 'src/processing/dataset_utils',
         'variable_selection': 'src/processing/variable_selection'
     },

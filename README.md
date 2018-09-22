@@ -23,24 +23,72 @@ $ python setup.py install
 
 ### cloud_tools
 
-The package cloud_tools allows to deploy complex pipeline into the cloud.
+The package cloud_tools allows to deploy complex machine learning pipelines into the cloud.
 
 #### /gcp
 
-Utilities for Google Cloud Platform. Processing is realised using apache beam and 
+Utilities for Google Cloud Platform machine learning. Processing is realised using Google DataFlow (apache beam) and 
 model training and prediction are realised using Google ML Engine.
 
-A couple of process need to be acomplish before deploying pipelines into GCP.
+/example 
+
+Transfer learning with flower dataset: https://cloud.google.com/ml-engine/docs/tensorflow/flowers-tutorial
+
+The example shows how to use dataflow and ml engine to preprocess image data and then apply a classifier model. The 
+purpose is to classify image data using transfer learning.
+
 Firstly, let us define the environment variables:
 ```
-$ cd src/cloud_tools/gcp && . env_variable.sh
+$ cd src/cloud_tools/gcp 
+$ . env_variable.sh
 ```
 
-In order to deploy a processing pipeline, execute the following command:
+In order to deploy the processing pipeline on evaluation data, execute the following command:
 ```
-$ python image_preprocess.py --input_dict "$DICT_FILE" --input_path "gs://cloud-ml-data/img/flower_photos/eval_set.csv" --output_path "${GCS_PATH}/preproc/eval" --cloud
+$ python example/image_preprocess.py --input_dict "$DICT_FILE" --input_path "gs://cloud-ml-data/img/flower_photos/eval_set.csv" --output_path "${GCS_PATH}/preproc/eval" --cloud
 ```
- 
+
+For the training data, use the following command:
+```
+$ python example/image_preprocess.py --input_dict "$DICT_FILE" --input_path "gs://cloud-ml-data/img/flower_photos/train_set.csv" --output_path "${GCS_PATH}/preproc/train" --cloud
+```
+
+Now that the embeddings of training and evaluation data set are stored on Storage, we can train our model:
+(use admin privilege if necessary)
+```
+$ gcloud ml-engine jobs submit training "$JOB_NAME" \
+    --stream-logs \
+    --module-name example.image_classification_task \
+    --package-path example \
+    --staging-bucket "$BUCKET_NAME" \
+    --region "$REGION" \
+    --runtime-version=1.4\
+    -- \
+    --output_path "${GCS_PATH}/training" \
+    --eval_data_paths "${GCS_PATH}/preproc/eval*" \
+    --train_data_paths "${GCS_PATH}/preproc/train*"
+```
+
+Export the model:
+```
+$ gcloud ml-engine models create "$MODEL_NAME" \
+  --regions "$REGION"
+```
+
+Deploy the model for prediction:
+```
+$ gcloud ml-engine versions create "$VERSION_NAME" \
+  --model "$MODEL_NAME" \
+  --origin "${GCS_PATH}/training/model" \
+  --runtime-version=1.4
+```
+
+Make a prediction from an image:
+```
+$ python -c 'import base64, sys, json; img = base64.b64encode(open(sys.argv[1], "rb").read()); print json.dumps({"key":"0", "image_bytes": {"b64": img}})' daisy.jpg &> request.json
+$ gcloud ml-engine predict --model ${MODEL_NAME} --json-instances request.json
+```
+
 ### model
 
 #### /computer_vision

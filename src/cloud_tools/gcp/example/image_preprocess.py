@@ -368,7 +368,7 @@ def configure_pipeline(p, opt):
       opt.input_path, strip_trailing_newlines=True)
   read_label_source = beam.io.ReadFromText(
       opt.input_dict, strip_trailing_newlines=True)
-  """
+
   labels = (p | 'Read dictionary' >> read_label_source)
   _ = (p
        | 'Read input' >> read_input_source
@@ -385,12 +385,12 @@ def configure_pipeline(p, opt):
        | 'Save to disk'
        >> beam.io.WriteToTFRecord(opt.output_path,
                                   file_name_suffix='.tfrecord.gz'))
-    """
+
 
 
 def run(in_args=None):
   """Runs the pre-processing pipeline."""
-
+  print("Preprocess running")
   pipeline_options = PipelineOptions.from_dictionary(vars(in_args))
   with beam.Pipeline(options=pipeline_options) as p:
     configure_pipeline(p, in_args)
@@ -484,8 +484,14 @@ def get_cloud_project():
 
 
 def main(argv):
-  arg_dict = default_args(argv)
-  run(arg_dict)
+    try:
+        print("Start program")
+        arg_dict = default_args(argv)
+        run(arg_dict)
+
+    except Exception as e:
+
+        print("Program error: ", str(e))
 
 
 if __name__ == '__main__':
