@@ -30,7 +30,7 @@ The package cloud_tools allows to deploy complex machine learning pipelines into
 Utilities for Google Cloud Platform machine learning. Processing is realised using Google DataFlow (apache beam) and 
 model training and prediction are realised using Google ML Engine.
 
-/example 
+##### /example 
 
 Transfer learning with flower dataset: https://cloud.google.com/ml-engine/docs/tensorflow/flowers-tutorial
 
@@ -40,7 +40,7 @@ purpose is to classify image data using transfer learning.
 Firstly, let us define the environment variables:
 ```
 $ cd src/cloud_tools/gcp 
-$ . env_variable.sh
+$ ./example/env_variable.sh
 ```
 
 In order to deploy the processing pipeline on evaluation data, execute the following command:

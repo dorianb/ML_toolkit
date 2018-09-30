@@ -131,7 +131,7 @@ def configure_pipeline(p, opt):
   _ = (p
        | 'Read input' >> read_input_source
        | 'Parse input' >> beam.Map(lambda line: csv.reader([line]).next())
-       | 'Read and transform image' >> beam.ParDo(ReadAndTransformImageDoFn(opt.resize_shape))
+       | 'Read and transform image' >> beam.ParDo(ReadAndTransformImageDoFn(), (opt.resize_width, opt.resize_height))
        | 'Make TFExample' >> beam.ParDo(TFExampleFromImageDoFn())
        | 'SerializeToString' >> beam.Map(lambda x: x.SerializeToString())
        | 'Save to disk' >> beam.io.WriteToTFRecord(opt.output_path, file_name_suffix='.tfrecord.gz'))
@@ -139,7 +139,6 @@ def configure_pipeline(p, opt):
 
 def run(in_args=None):
   """Runs the pre-processing pipeline."""
-  print("Preprocess running")
   pipeline_options = PipelineOptions.from_dictionary(vars(in_args))
   with beam.Pipeline(options=pipeline_options) as p:
     configure_pipeline(p, in_args)
@@ -186,7 +185,7 @@ def default_args(argv):
   parser.add_argument(
       '--job_name',
       type=str,
-      default='image_classification-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S'),
+      default='image-classification-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S'),
       help='A unique job identifier.')
   parser.add_argument(
       '--num_workers', default=20, type=int, help='The number of workers.')
@@ -248,7 +247,6 @@ def get_cloud_project():
 
 def main(argv):
     try:
-        print("Start program")
         arg_dict = default_args(argv)
         run(arg_dict)
 
