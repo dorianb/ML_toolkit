@@ -40,7 +40,7 @@ purpose is to classify image data using transfer learning.
 Firstly, let us define the environment variables:
 ```
 $ cd src/cloud_tools/gcp 
-$ ./example/env_variable.sh
+$ . example/env_variable.sh
 ```
 
 In order to deploy the processing pipeline on evaluation data, execute the following command:
