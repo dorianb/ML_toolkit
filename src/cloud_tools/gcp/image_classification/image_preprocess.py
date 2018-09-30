@@ -23,11 +23,8 @@ except ImportError:
 from PIL import Image
 import tensorflow as tf
 
-from tensorflow.contrib.slim.python.slim.nets import inception_v3 as inception
 from tensorflow.python.framework import errors
 from tensorflow.python.lib.io import file_io
-
-slim = tf.contrib.slim
 
 error_count = Metrics.counter('main', 'errorCount')
 missing_label_count = Metrics.counter('main', 'missingLabelCount')
@@ -54,11 +51,11 @@ class ReadAndTransformImageDoFn(beam.DoFn):
 
   """
 
-  def process(self, element, resize_shape):
+  def process(self, element, dataset_path, resize_shape):
     try:
-      uri, label_ids = element.element
+      uri, label_id = element.element
     except AttributeError:
-      uri, label_ids = element
+      uri, label_id = element
 
     # TF will enable 'rb' in future versions, but until then, 'r' is
     # required.
@@ -67,6 +64,8 @@ class ReadAndTransformImageDoFn(beam.DoFn):
         return file_io.FileIO(uri, mode='rb')
       except errors.InvalidArgumentError:
         return file_io.FileIO(uri, mode='r')
+
+    uri = os.path.join(dataset_path, uri)
 
     try:
       with _open_file_read_binary(uri) as f:
@@ -87,7 +86,9 @@ class ReadAndTransformImageDoFn(beam.DoFn):
     output = io.BytesIO()
     img.save(output, Default.FORMAT)
     image_bytes = output.getvalue()
-    yield uri, label_ids, image_bytes
+
+    logging.info("Read and transformed image %s with label %s" % (uri, label_id))
+    yield uri, label_id, image_bytes
 
 
 class TFExampleFromImageDoFn(beam.DoFn):
@@ -106,7 +107,7 @@ class TFExampleFromImageDoFn(beam.DoFn):
       return tf.train.Feature(bytes_list=tf.train.BytesList(value=value))
 
     def _int64_feature(value):
-        return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+        return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
 
     try:
       element = element.element
@@ -117,7 +118,7 @@ class TFExampleFromImageDoFn(beam.DoFn):
     example = tf.train.Example(features=tf.train.Features(feature={
         'image_uri': _bytes_feature([uri]),
         'image_bytes': _bytes_feature([image_bytes]),
-        'label': _int64_feature([label_id])
+        'label': _int64_feature([int(label_id)])
     }))
 
     yield example
@@ -128,10 +129,15 @@ def configure_pipeline(p, opt):
   read_input_source = beam.io.ReadFromText(
       opt.input_path, strip_trailing_newlines=True)
 
+  dataset_path = os.path.dirname(opt.input_path)
   _ = (p
        | 'Read input' >> read_input_source
        | 'Parse input' >> beam.Map(lambda line: csv.reader([line]).next())
-       | 'Read and transform image' >> beam.ParDo(ReadAndTransformImageDoFn(), (opt.resize_width, opt.resize_height))
+       | 'Read and transform image' >> beam.ParDo(
+                                    ReadAndTransformImageDoFn(),
+                                    dataset_path,
+                                    (opt.resize_width, opt.resize_height)
+                                )
        | 'Make TFExample' >> beam.ParDo(TFExampleFromImageDoFn())
        | 'SerializeToString' >> beam.Map(lambda x: x.SerializeToString())
        | 'Save to disk' >> beam.io.WriteToTFRecord(opt.output_path, file_name_suffix='.tfrecord.gz'))
