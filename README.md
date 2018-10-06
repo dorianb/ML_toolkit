@@ -94,6 +94,21 @@ $ cd data/flowers
 $ python -c 'import base64, sys, json; img = base64.b64encode(open(sys.argv[1], "rb").read()); print json.dumps({"key":"0", "image_bytes": {"b64": img}})' daisy.jpg &> request.json
 $ gcloud ml-engine predict --model ${MODEL_NAME} --json-instances request.json
 ```
+##### /image_classification
+
+Train an image classification vgg model with natural images dataset preprocessed:
+```
+$ gcloud ml-engine jobs submit training "$JOB_NAME" \
+ --stream-logs --module-name image_classification.image_classification_task \ 
+ --package-path image_classification \
+ --staging-bucket "$BUCKET_NAME" --region "$REGION" \
+ --runtime-version=1.4 \   
+ -- \
+ --output_path "${BUCKET_NAME}/model/vgg_16/natural_images/training" \
+ --eval_data_paths "${GCS_PATH}/validation*" \
+ --train_data_paths "${GCS_PATH}/training*"
+```
+
 
 ### model
 

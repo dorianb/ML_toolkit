@@ -1,18 +1,3 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""Flowers classification model.
-"""
 
 import argparse
 import logging
@@ -37,11 +22,7 @@ IMAGE_URI_COLUMN = 'image_uri'
 LABEL_COLUMN = 'label'
 EMBEDDING_COLUMN = 'embedding'
 
-# Path to a default checkpoint file for the Inception graph.
-DEFAULT_INCEPTION_CHECKPOINT = (
-    'gs://cloud-ml-data/img/flower_photos/inception_v3_2016_08_28.ckpt')
 BOTTLENECK_TENSOR_SIZE = 2048
-
 
 class GraphMod():
   TRAIN = 1
@@ -80,10 +61,7 @@ def create_model():
   # during preprocessing.
   parser.add_argument('--label_count', type=int, default=5)
   parser.add_argument('--dropout', type=float, default=0.5)
-  parser.add_argument(
-      '--inception_checkpoint_file',
-      type=str,
-      default=DEFAULT_INCEPTION_CHECKPOINT)
+  parser.add_argument('--checkpoint_file', type=str, default='')
   args, task_args = parser.parse_known_args()
   override_if_not_in_args('--max_steps', '1000', task_args)
   override_if_not_in_args('--batch_size', '100', task_args)
@@ -92,7 +70,7 @@ def create_model():
   override_if_not_in_args('--log_interval_secs', '2', task_args)
   override_if_not_in_args('--min_train_eval_rate', '2', task_args)
   return Model(args.label_count, args.dropout,
-               args.inception_checkpoint_file), task_args
+               args.checkpoint_file), task_args
 
 
 class GraphReferences(object):
@@ -117,99 +95,6 @@ class Model(object):
     self.dropout = dropout
     self.inception_checkpoint_file = inception_checkpoint_file
 
-  def add_final_training_ops(self,
-                             embeddings,
-                             all_labels_count,
-                             hidden_layer_size=BOTTLENECK_TENSOR_SIZE / 4,
-                             dropout_keep_prob=None):
-    """Adds a new softmax and fully-connected layer for training.
-
-     The set up for the softmax and fully-connected layers is based on:
-     https://tensorflow.org/versions/master/tutorials/mnist/beginners/index.html
-
-     This function can be customized to add arbitrary layers for
-     application-specific requirements.
-    Args:
-      embeddings: The embedding (bottleneck) tensor.
-      all_labels_count: The number of all labels including the default label.
-      hidden_layer_size: The size of the hidden_layer. Roughtly, 1/4 of the
-                         bottleneck tensor size.
-      dropout_keep_prob: the percentage of activation values that are retained.
-    Returns:
-      softmax: The softmax or tensor. It stores the final scores.
-      logits: The logits tensor.
-    """
-    with tf.name_scope('input'):
-      with tf.name_scope('Wx_plus_b'):
-        hidden = layers.fully_connected(embeddings, hidden_layer_size)
-        # We need a dropout when the size of the dataset is rather small.
-        if dropout_keep_prob:
-          hidden = tf.nn.dropout(hidden, dropout_keep_prob)
-        logits = layers.fully_connected(
-            hidden, all_labels_count, activation_fn=None)
-
-    softmax = tf.nn.softmax(logits, name='softmax')
-    return softmax, logits
-
-  def build_inception_graph(self):
-    """Builds an inception graph and add the necessary input & output tensors.
-
-      To use other Inception models modify this file. Also preprocessing must be
-      modified accordingly.
-
-      See tensorflow/contrib/slim/python/slim/nets/inception_v3.py for
-      details about InceptionV3.
-
-    Returns:
-      input_jpeg: A placeholder for jpeg string batch that allows feeding the
-                  Inception layer with image bytes for prediction.
-      inception_embeddings: The embeddings tensor.
-    """
-
-    # These constants are set by Inception v3's expectations.
-    height = 299
-    width = 299
-    channels = 3
-
-    image_str_tensor = tf.placeholder(tf.string, shape=[None])
-
-    # The CloudML Prediction API always "feeds" the Tensorflow graph with
-    # dynamic batch sizes e.g. (?,).  decode_jpeg only processes scalar
-    # strings because it cannot guarantee a batch of images would have
-    # the same output size.  We use tf.map_fn to give decode_jpeg a scalar
-    # string from dynamic batches.
-    def decode_and_resize(image_str_tensor):
-      """Decodes jpeg string, resizes it and returns a uint8 tensor."""
-      image = tf.image.decode_jpeg(image_str_tensor, channels=channels)
-      # Note resize expects a batch_size, but tf_map supresses that index,
-      # thus we have to expand then squeeze.  Resize returns float32 in the
-      # range [0, uint8_max]
-      image = tf.expand_dims(image, 0)
-      image = tf.image.resize_bilinear(
-          image, [height, width], align_corners=False)
-      image = tf.squeeze(image, squeeze_dims=[0])
-      image = tf.cast(image, dtype=tf.uint8)
-      return image
-
-    image = tf.map_fn(
-        decode_and_resize, image_str_tensor, back_prop=False, dtype=tf.uint8)
-    # convert_image_dtype, also scales [0, uint8_max] -> [0 ,1).
-    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
-
-    # Then shift images to [-1, 1) for Inception.
-    image = tf.subtract(image, 0.5)
-    image = tf.multiply(image, 2.0)
-
-    # Build Inception layers, which expect A tensor of type float from [-1, 1)
-    # and shape [batch_size, height, width, channels].
-    with slim.arg_scope(inception.inception_v3_arg_scope()):
-      _, end_points = inception.inception_v3(image, is_training=False)
-
-    inception_embeddings = end_points['PreLogits']
-    inception_embeddings = tf.squeeze(
-        inception_embeddings, [1, 2], name='SpatialSqueeze')
-    return image_str_tensor, inception_embeddings
-
   def build_graph(self, data_paths, batch_size, graph_mod):
     """Builds generic graph for training or eval."""
     tensors = GraphReferences()
@@ -224,12 +109,7 @@ class Model(object):
       tensors.examples = tf.placeholder(tf.string, name='input', shape=(None,))
 
     if graph_mod == GraphMod.PREDICT:
-      inception_input, inception_embeddings = self.build_inception_graph()
-      # Build the Inception graph. We later add final training layers
-      # to this graph. This is currently used only for prediction.
-      # For training, we use pre-processed data, so it is not needed.
-      embeddings = inception_embeddings
-      tensors.input_jpeg = inception_input
+      pass
     else:
       # For training and evaluation we assume data is preprocessed, so the
       # inputs are tf-examples.
@@ -239,35 +119,87 @@ class Model(object):
             'image_uri':
                 tf.FixedLenFeature(
                     shape=[], dtype=tf.string, default_value=['']),
-            # Some images may have no labels. For those, we assume a default
-            # label. So the number of labels is label_count+1 for the default
-            # label.
+            'image_bytes':
+                tf.FixedLenFeature(
+                    shape=[], dtype=tf.string, default_value=['']),
             'label':
                 tf.FixedLenFeature(
                     shape=[1], dtype=tf.int64,
-                    default_value=[self.label_count]),
-            'embedding':
-                tf.FixedLenFeature(
-                    shape=[BOTTLENECK_TENSOR_SIZE], dtype=tf.float32)
+                    default_value=[self.label_count])
         }
         parsed = tf.parse_example(tensors.examples, features=feature_map)
         labels = tf.squeeze(parsed['label'])
         uris = tf.squeeze(parsed['image_uri'])
-        embeddings = parsed['embedding']
+        images_str_tensor = parsed['image_bytes']
+
+      def decode_and_resize(image_str_tensor):
+          """Decodes jpeg string, resizes it and returns a uint8 tensor."""
+          image = tf.image.decode_jpeg(image_str_tensor, channels=1)
+
+          # Note resize expects a batch_size, but tf_map supresses that index,
+          # thus we have to expand then squeeze.  Resize returns float32 in the
+          # range [0, uint8_max]
+          """
+          image = tf.expand_dims(image, 0)
+          image = tf.image.resize_bilinear(
+              image, [height, width], align_corners=False)*/
+          image = tf.squeeze(image, squeeze_dims=[0])
+          """
+
+          image = tf.cast(image, dtype=tf.uint8)
+
+          # convert_image_dtype, also scales [0, uint8_max] -> [0 ,1).
+          return tf.image.convert_image_dtype(image, dtype=tf.float32)
+
+    images = tf.map_fn(
+      decode_and_resize, images_str_tensor, back_prop=False, dtype=tf.float32)
 
     # We assume a default label, so the total number of labels is equal to
     # label_count+1.
     all_labels_count = self.label_count + 1
-    with tf.name_scope('final_ops'):
-      softmax, logits = self.add_final_training_ops(
-          embeddings,
-          all_labels_count,
-          dropout_keep_prob=self.dropout if is_training else None)
 
+    with tf.name_scope('model'):
+
+        fc_padding = 'VALID'
+        with tf.variable_scope('model', 'vgg_16', [images]) as sc:
+            end_points_collection = sc.original_name_scope + '_end_points'
+            # Collect outputs for conv2d, fully_connected and max_pool2d.
+            with slim.arg_scope([slim.conv2d, slim.fully_connected, slim.max_pool2d],
+                                outputs_collections=end_points_collection):
+                net = slim.repeat(images, 2, slim.conv2d, 64, [3, 3], scope='conv1')
+                net = slim.max_pool2d(net, [2, 2], scope='pool1')
+                net = slim.repeat(net, 2, slim.conv2d, 128, [3, 3], scope='conv2')
+                net = slim.max_pool2d(net, [2, 2], scope='pool2')
+                net = slim.repeat(net, 3, slim.conv2d, 256, [3, 3], scope='conv3')
+                net = slim.max_pool2d(net, [2, 2], scope='pool3')
+                net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
+                net = slim.max_pool2d(net, [2, 2], scope='pool4')
+                net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
+                net = slim.max_pool2d(net, [2, 2], scope='pool5')
+
+                # Use conv2d instead of fully_connected layers.
+                net = slim.conv2d(net, 4096, [7, 7], padding=fc_padding, scope='fc6')
+                net = slim.dropout(net, 0.5, is_training=True,
+                                   scope='dropout6')
+                net = slim.conv2d(net, 4096, [1, 1], scope='fc7')
+                # Convert end_points_collection into a end_point dict.
+                end_points = slim.utils.convert_collection_to_dict(end_points_collection)
+
+                net = slim.dropout(net, 0.5, is_training=True,
+                                   scope='dropout7')
+                net = slim.conv2d(net, all_labels_count, [1, 1],
+                                  activation_fn=None,
+                                  normalizer_fn=None,
+                                  scope='fc8')
+
+                net = tf.squeeze(net, [1, 2], name='fc8/squeezed')
+                end_points[sc.name + '/fc8'] = net
+    logits = net
+    softmax = tf.nn.softmax(logits)
     # Prediction is the index of the label with the highest score. We are
     # interested only in the top score.
     prediction = tf.argmax(softmax, 1)
-    tensors.predictions = [prediction, softmax, embeddings]
+    tensors.predictions = [prediction, softmax, images]
 
     if graph_mod == GraphMod.PREDICT:
       return tensors
@@ -362,7 +294,7 @@ class Model(object):
     return inputs, outputs
 
   def export(self, last_checkpoint, output_dir):
-    """Builds a prediction graph and xports the model.
+    """Builds a prediction graph and exports the model.
 
     Args:
       last_checkpoint: Path to the latest checkpoint file from training.
