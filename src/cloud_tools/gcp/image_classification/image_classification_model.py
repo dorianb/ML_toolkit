@@ -59,12 +59,12 @@ def create_model():
   parser = argparse.ArgumentParser()
   # Label count needs to correspond to nubmer of labels in dictionary used
   # during preprocessing.
-  parser.add_argument('--label_count', type=int, default=5)
+  parser.add_argument('--label_count', type=int, default=8)
   parser.add_argument('--dropout', type=float, default=0.5)
   parser.add_argument('--checkpoint_file', type=str, default='')
   args, task_args = parser.parse_known_args()
   override_if_not_in_args('--max_steps', '1000', task_args)
-  override_if_not_in_args('--batch_size', '100', task_args)
+  override_if_not_in_args('--batch_size', '2', task_args)
   override_if_not_in_args('--eval_set_size', '370', task_args)
   override_if_not_in_args('--eval_interval_secs', '2', task_args)
   override_if_not_in_args('--log_interval_secs', '2', task_args)
@@ -106,6 +106,7 @@ class Model(object):
           shuffle=is_training,
           num_epochs=None if is_training else 2)
     else:
+      logging.info("No data path")
       tensors.examples = tf.placeholder(tf.string, name='input', shape=(None,))
 
     if graph_mod == GraphMod.PREDICT:
@@ -127,6 +128,7 @@ class Model(object):
                     shape=[1], dtype=tf.int64,
                     default_value=[self.label_count])
         }
+        #tensors.examples = tf.Print(tensors.examples, [tf.shape(tensors.examples)], message="Parsing examples: ")
         parsed = tf.parse_example(tensors.examples, features=feature_map)
         labels = tf.squeeze(parsed['label'])
         uris = tf.squeeze(parsed['image_uri'])
@@ -151,6 +153,7 @@ class Model(object):
           # convert_image_dtype, also scales [0, uint8_max] -> [0 ,1).
           return tf.image.convert_image_dtype(image, dtype=tf.float32)
 
+    #images_str_tensor = tf.Print(images_str_tensor, [tf.shape(images_str_tensor)], message="Decoding images: ")
     images = tf.map_fn(
       decode_and_resize, images_str_tensor, back_prop=False, dtype=tf.float32)
 
@@ -166,22 +169,30 @@ class Model(object):
             # Collect outputs for conv2d, fully_connected and max_pool2d.
             with slim.arg_scope([slim.conv2d, slim.fully_connected, slim.max_pool2d],
                                 outputs_collections=end_points_collection):
+                # images = tf.Print(images, [tf.shape(images)], message="Shape of input: ", summarize=4)
                 net = slim.repeat(images, 2, slim.conv2d, 64, [3, 3], scope='conv1')
+                #net = tf.Print(net, [tf.shape(net)], summarize=4, message='conv1')
                 net = slim.max_pool2d(net, [2, 2], scope='pool1')
                 net = slim.repeat(net, 2, slim.conv2d, 128, [3, 3], scope='conv2')
+                #net = tf.Print(net, [tf.shape(net)], summarize=4, message='conv2')
                 net = slim.max_pool2d(net, [2, 2], scope='pool2')
                 net = slim.repeat(net, 3, slim.conv2d, 256, [3, 3], scope='conv3')
+                #net = tf.Print(net, [tf.shape(net)], summarize=4, message='conv3')
                 net = slim.max_pool2d(net, [2, 2], scope='pool3')
                 net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
+                #net = tf.Print(net, [tf.shape(net)], summarize=4, message='conv4')
                 net = slim.max_pool2d(net, [2, 2], scope='pool4')
                 net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
+                #net = tf.Print(net, [tf.shape(net)], summarize=4, message='conv5')
                 net = slim.max_pool2d(net, [2, 2], scope='pool5')
 
                 # Use conv2d instead of fully_connected layers.
                 net = slim.conv2d(net, 4096, [7, 7], padding=fc_padding, scope='fc6')
+                #net = tf.Print(net, [tf.shape(net)], summarize=4, message='fc6')
                 net = slim.dropout(net, 0.5, is_training=True,
                                    scope='dropout6')
                 net = slim.conv2d(net, 4096, [1, 1], scope='fc7')
+                #net = tf.Print(net, [tf.shape(net)], summarize=4, message='fc7')
                 # Convert end_points_collection into a end_point dict.
                 end_points = slim.utils.convert_collection_to_dict(end_points_collection)
 
@@ -191,11 +202,13 @@ class Model(object):
                                   activation_fn=None,
                                   normalizer_fn=None,
                                   scope='fc8')
+                #net = tf.Print(net, [tf.shape(net)], summarize=4, message='fc8')
 
                 net = tf.squeeze(net, [1, 2], name='fc8/squeezed')
                 end_points[sc.name + '/fc8'] = net
     logits = net
     softmax = tf.nn.softmax(logits)
+    #softmax = tf.Print(softmax, [tf.shape(softmax)], summarize=4, message='softmax')
     # Prediction is the index of the label with the highest score. We are
     # interested only in the top score.
     prediction = tf.argmax(softmax, 1)
@@ -218,8 +231,11 @@ class Model(object):
     accuracy_updates, accuracy_op = util.accuracy(logits, labels)
 
     if not is_training:
+      #accuracy_op = tf.Print(accuracy_op, [accuracy_op], message="Accuracy")
+      #loss_op = tf.Print(loss_op, [loss_op], message="Loss")
       tf.summary.scalar('accuracy', accuracy_op)
       tf.summary.scalar('loss', loss_op)
+
 
     tensors.metric_updates = loss_updates + accuracy_updates
     tensors.metric_values = [loss_op, accuracy_op]

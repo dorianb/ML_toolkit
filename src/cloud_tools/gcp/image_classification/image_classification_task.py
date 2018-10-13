@@ -160,7 +160,9 @@ class Trainer(object):
 
     with tf.Graph().as_default() as graph:
       with tf.device(device_fn):
+
         # Build the training graph.
+        #logging.info("Building the training graph")
         self.tensors = self.model.build_train_graph(self.args.train_data_paths,
                                                     self.args.batch_size)
 
@@ -172,6 +174,7 @@ class Trainer(object):
         self.summary_op = tf.summary.merge_all()
 
     # Create a "supervisor", which oversees the training process.
+    logging.info("Create a supervisor, which oversees the training process")
     self.sv = tf.train.Supervisor(
         graph,
         is_chief=self.is_master,
@@ -204,6 +207,7 @@ class Trainer(object):
           while not self.sv.should_stop() and self.global_step < max_steps:
             try:
               # Run one step of the model.
+              #logging.info("Running one step of the model")
               self.global_step = session.run(to_run)[0]
               self.local_step += 1
 
@@ -214,19 +218,24 @@ class Trainer(object):
               should_log = is_time_to_log or should_eval
 
               if should_log:
+                #logging.info("Logging")
                 self.log(session)
 
               if should_eval:
+                #logging.info("Evaluating")
                 self.eval(session)
 
             except tf.errors.AbortedError:
               should_retry = True
+              logging.info("Aborted because of error")
 
           if self.is_master:
             # Take the final checkpoint and compute the final accuracy.
+            logging.info("Taking the final checkpoint and compute the final accuracy")
             self.eval(session)
 
             # Export the model for inference.
+            logging.info("Export the model for inference")
             self.model.export(
                 tf.train.latest_checkpoint(self.train_path), self.model_path)
 
@@ -315,7 +324,9 @@ def run(model, argv):
   parser.add_argument(
       '--eval_set_size', type=int, help='Number of examples in the eval set.')
   parser.add_argument(
-      '--eval_batch_size', type=int, help='Number of examples per eval batch.')
+      '--eval_batch_size',
+      type=int,
+      help='Number of examples per eval batch.')
   parser.add_argument(
       '--eval_interval_secs',
       type=float,
