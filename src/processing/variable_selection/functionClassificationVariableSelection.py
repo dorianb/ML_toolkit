@@ -4,7 +4,7 @@ import numpy as np
 
 def information_value(X, y):
     """
-    Compute the information value for a categorical variable and a binary variable to predict.
+    Compute the information value of a categorical variable for a binary variable to predict.
     Information value of a categorical variable has the following power prediction meaning:
 
         < 0.02 useless for prediction
@@ -40,7 +40,7 @@ def information_value(X, y):
 
 def fisher_score(X, y):
     """
-    Compute the fisher score of a continuous variable.
+    Compute the fisher score of a continuous variable for a binary variable to predict.
 
     Args:
         X: a pandas serie representing a continuous variable

@@ -5,3 +5,5 @@ Pillow
 scikit-image
 apache-beam[gcp]
 pandas
+sklearn
+scipy
