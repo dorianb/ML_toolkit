@@ -37,6 +37,7 @@ class RNNCell(Cell):
             a tuple with state and output if the last is computed
         """
         n_features = input_t.get_shape()[-1]
+        prev_cell_unit = prev_state.get_shape()[-1]
 
         with tf.variable_scope(name_or_scope=name):
 
@@ -44,23 +45,26 @@ class RNNCell(Cell):
                 (n_features, self.n_unit), initializer="glorot_uniform",
                 dtype=tf.float32, name="input_w", seed=seed)
             w_state = self.initialize_variable(
-                (self.n_unit, self.n_unit), initializer="orthogonal",
+                (prev_cell_unit, self.n_unit), initializer="orthogonal",
                 dtype=tf.float32, name="state_w", seed=seed)
-            w_back = self.initialize_variable(
-                (self.n_output, self.n_unit), initializer="random_uniform",
-                dtype=tf.float32, name="back_w", seed=seed
-            )
+
+            if self.with_prev_output and prev_output is not None:
+                w_back = self.initialize_variable(
+                    (self.n_output, self.n_unit), initializer="random_uniform",
+                    dtype=tf.float32, name="back_w", seed=seed
+                )
 
             b_x = self.initialize_variable(
                 (self.n_unit, ), initializer="zeros", name="b_x",
                 dtype=tf.float32, seed=seed)
 
-            w_output = self.initialize_variable(
-                (n_features + self.n_unit, self.n_output), initializer="glorot_uniform",
-                dtype=tf.float32, name="output_w", seed=seed)
-            b_y = self.initialize_variable(
-                (self.n_output,), initializer="zeros",
-                dtype=tf.float32, name="b_output", seed=seed)
+            if self.return_output:
+                w_output = self.initialize_variable(
+                    (n_features + self.n_unit, self.n_output), initializer="glorot_uniform",
+                    dtype=tf.float32, name="output_w", seed=seed)
+                b_y = self.initialize_variable(
+                    (self.n_output,), initializer="zeros",
+                    dtype=tf.float32, name="b_output", seed=seed)
 
         with tf.name_scope(name=name):
 
