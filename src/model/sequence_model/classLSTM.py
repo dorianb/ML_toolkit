@@ -53,21 +53,6 @@ class LSTM:
             'out': tf.Variable(tf.random_normal([self.n_classes]))
         }
 
-    @staticmethod
-    def initialize_variable(name, shape):
-        """
-        Initialize a variable
-
-        Args:
-            name: the name of the variable
-            shape: the shape of the variable
-
-        Returns:
-            tensorflow variable
-        """
-        initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
-        return tf.get_variable(name, shape=shape, dtype=tf.float32, initializer=initializer)
-
     def lstm_layer(self, n_hidden_units, name_scope="lstm_layer"):
         """
         Create the graph of a lstm layer.

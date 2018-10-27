@@ -1,6 +1,7 @@
+from sequence_model.classSequenceModel import SequenceModel
 
 
-class SequenceModel:
+class RNN(SequenceModel):
 
     def __init__(self):
         pass
