@@ -1,14 +1,168 @@
+import tensorflow as tf
+import numpy as np
+import os
+from datetime import datetime
 
 
 class SequenceModel:
 
     def __init__(self):
-        pass
+        """
+        Initialize a sequential model.
+        """
+        tf.reset_default_graph()
 
     def build_model(self, input_seq, name="sequence_model"):
         pass
 
-    def fit(self):
+    @staticmethod
+    def get_optimizer(name="adam", learning_rate=0.1):
+        """
+        Get the optimizer object corresponding. If unknown optimizer, raise an exception.
+
+        Args:
+            name: name of the optimizer
+            learning_rate: the learning rate
+        Returns:
+            a tensorflow optimizer object
+        """
+        if name == "adam":
+            return tf.train.AdamOptimizer(learning_rate=learning_rate)
+        elif name == "adadelta":
+            return tf.train.AdadeltaOptimizer(learning_rate=learning_rate)
+        elif name == "gradientdescent":
+            return tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+        elif name == "rmsprop":
+            return tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+        else:
+            raise Exception("The optimizer is unknown")
+
+    def get_writer(self):
+        """
+        Get the training and validation summaries writers.
+
+        Returns:
+            Tensorflow FileWriter object
+        """
+        training_path = os.path.join(self.summary_path, "train", str(datetime.now()))
+        validation_path = os.path.join(self.summary_path, "val", str(datetime.now()))
+        return tf.summary.FileWriter(training_path), \
+               tf.summary.FileWriter(validation_path)
+
+    def load(self, session):
+        """
+        Load the model variables values.
+
+        Args:
+            session: the tensorflow session
+
+        Returns:
+            Nothing
+        """
+        step = sorted([
+            int(filename.split(self.name)[1].split("-")[1].split(".")[0])
+            for filename in os.listdir(self.checkpoint_path)
+            if self.name in filename
+        ]).pop()
+        filename = self.name + "-" + str(step)
+        checkpoint_path = os.path.join(self.checkpoint_path, filename)
+        self.saver.restore(session, checkpoint_path)
+        self.global_step = self.global_step.assign(step)
+        step = session.run(self.global_step)
+        self.logger.info("Loaded model from %s at step %d" % (filename, step)
+                         ) if self.logger else None
+
+    @staticmethod
+    def load_batch(examples):
+        """
+        Load the batch examples.
+
+        Args:
+            examples: the example in the batch
+
+        Returns:
+            the batch examples
+        """
+        inputs = []
+        labels = []
+        for example in examples:
+            input, label = example
+            inputs.append(input)
+            labels.append(label)
+
+        return np.stack(inputs), np.stack(labels)
+
+    @staticmethod
+    def compute_loss(output, label, loss='MSE'):
+        """
+        Compute the loss operation.
+
+        Args:
+            output: the output of the model class probabilities or prediction
+            label: the tensor of labels
+            loss: the loss name
+
+        Returns:
+            loss: the loss
+        """
+        if loss == 'cross_entropy':
+            loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=output, labels=label
+            ))
+        elif loss == 'mse':
+            loss = tf.reduce_mean(tf.square(output - label))
+
+        tf.summary.scalar('Loss', loss)
+        return loss
+
+    def compute_accuracy(self, logit, label):
+        """
+        Compute the accuracy measure.
+
+        Args:
+            logit: the tensor of class probabilities (bach_size, n_classes)
+            label: the tensor of labels (batch_size, n_classes)
+
+        Returns:
+            accuracy: the accuracy metric measure
+
+        """
+        pred = tf.argmax(logit, axis=-1)
+        y = tf.argmax(label, axis=-1)
+
+        pred = tf.Print(pred, [pred], message="Prediction: ",
+                        summarize=2) if self.debug else pred
+        y = tf.Print(y, [y], message="Label: ",
+                     summarize=2) if self.debug else y
+
+        accuracy = tf.reduce_mean(tf.cast(tf.equal(y, pred), "float"))
+        tf.summary.scalar('Accuracy', accuracy)
+
+        return accuracy
+
+    def compute_gradient(self, loss, global_step):
+        """
+        Compute gradient and update parameters.
+
+        Args:
+            loss: the loss to minimize
+            global_step: the training step
+        Returns:
+            the training operation
+        """
+        grads_and_vars = self.optimizer.compute_gradients(loss)
+        self.logger.debug(grads_and_vars) if self.logger else None
+        return self.optimizer.apply_gradients(grads_and_vars,
+                                              global_step=global_step)
+
+    def fit(self, train_set, validation_set):
+        """
+        Fit model using training set.
+
+        Args:
+            train_set: the data set used for training
+            validation_set: the data set used for evaluation
+        """
         pass
 
     def predict(self):
