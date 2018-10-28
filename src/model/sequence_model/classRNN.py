@@ -8,10 +8,10 @@ from sequence_model.classRNNCell import RNNCell
 
 class RNN(SequenceModel):
 
-    def __init__(self, units, f_out, batch_size, time_steps, n_features, n_output,
+    def __init__(self, units, f_out, batch_size=2, time_steps=24, n_features=10, n_output=1,
                  with_prev_output=False, with_input=True, return_sequences=True,
-                 n_epochs=1, validation_step=10, from_pretrained=False,
-                 optimizer_name="rmsprop", summary_path=".", checkpoint_path=".",
+                 n_epochs=1, validation_step=10, checkpoint_step=100, from_pretrained=False,
+                 optimizer_name="rmsprop", learning_rate=0.001, summary_path=".", checkpoint_path=".",
                  name="rnn", logger=None, debug=False):
         """
         Initialize an RNN model.
@@ -26,9 +26,11 @@ class RNN(SequenceModel):
             with_input: whether to use an input at each stage or use the previous instead
             return_sequences: whether to return an ouput for each time step of sequence
             n_epochs: the number of epochs
-            validation_step: the number of batch training between each checkpoints
+            validation_step: the number of batch training between each evaluation
+            checkpoint_step: the number of batch training between each checkpoints
             from_pretrained: whether to load pre trained model
             optimizer_name: the name of the optimizer
+            learning_rate: the learning rate used by the optimizer
             summary_path: the path of the summary
             checkpoint_path: the path to the model checkpoint
             logger: the logging instance to trace
@@ -47,9 +49,11 @@ class RNN(SequenceModel):
         self.with_input = with_input
         self.return_sequences = return_sequences
         self.n_epochs = n_epochs
-        self.validatin_step = validation_step
+        self.validation_step = validation_step
+        self.checkpoint_step = checkpoint_step
         self.from_pretrained = from_pretrained
         self.optimizer_name = optimizer_name
+        self.learning_rate = learning_rate
         self.summary_path = summary_path
         self.checkpoint_path = checkpoint_path
         self.name = name
@@ -64,6 +68,9 @@ class RNN(SequenceModel):
         self.label = tf.placeholder(shape=(
             None, self.time_steps, self.n_output
         ) if self.return_sequences else (None, self.n_output), dtype=tf.float32)
+
+        self.initial_states = None
+        self.initial_outputs = None
 
         # Global step
         self.global_step = tf.Variable(0, dtype=tf.int32, name="global_step")
@@ -93,6 +100,14 @@ class RNN(SequenceModel):
             n_layers, n_cells = self.units.shape
             prev_layers_outputs = []
 
+            self.initial_states = [tf.placeholder(
+                name="initial_state_" + str(l), shape=(None, self.units[l][0]), dtype=tf.float32
+            ) for l in range(n_layers)]
+
+            self.initial_outputs = tf.placeholder(
+                name="initial_outputs", shape=(n_layers, None, self.n_output), dtype=tf.float32
+            ) if self.with_prev_output else None
+
             for l, layer_units in enumerate(self.units):
 
                 with_prev_output = self.with_prev_output if l == 0 and self.with_input else False
@@ -103,17 +118,11 @@ class RNN(SequenceModel):
                     for t, cell_unit in enumerate(layer_units):
 
                         if t == 0:
-                            prev_state = tf.placeholder(
-                                name="initial_state", shape=(None, cell_unit),
-                                dtype=tf.float32
-                            )
+                            prev_state = self.initial_states[l]
                             prev_output = None
 
-                        if (t == 0 and with_prev_output) or (t == 0 and not self.with_input):
-                            prev_output = tf.placeholder(
-                                name="initial_output", shape=(None, self.n_output),
-                                dtype=tf.float32
-                            )
+                        if t == 0 and with_prev_output:
+                            prev_output = self.initial_outputs[l]
 
                         input_t = input_seq[:, t, :] if self.with_input or t == 0 else prev_output
                         input_t = prev_layers_outputs[l-1][t] if l > 0 and self.with_input else input_t
@@ -141,13 +150,15 @@ class RNN(SequenceModel):
             [self.batch_size, n_cells, self.n_output]
         ) if self.return_sequences else prev_output
 
-    def fit(self, train_set, validation_set):
+    def fit(self, train_set, validation_set, initial_states, initial_outputs=None):
         """
         Fit model using training set.
 
         Args:
             train_set: the data set used for training
             validation_set: the data set used for evaluation
+            initial_states: the initial states of the graph model
+            initial_outputs: the initial outputs of the graph model
 
         """
         # Build the graph model
@@ -185,14 +196,18 @@ class RNN(SequenceModel):
                     time0 = time()
                     batch_examples = train_set[i - self.batch_size: i]
 
-                    image_batch, label_batch = self.load_batch(batch_examples)
+                    feature_batch, label_batch = self.load_batch(batch_examples)
+
+                    feed_dict = {
+                        self.input: feature_batch,
+                        self.label: label_batch,
+                        self.initial_outputs: initial_outputs
+                    }
+                    feed_dict.update({i: d for i, d in zip(self.initial_states, initial_states)})
 
                     _, loss_value, summaries_value, step = sess.run([
                         train_op, loss, summaries, self.global_step],
-                        feed_dict={
-                            self.input: image_batch,
-                            self.label: label_batch
-                        }
+                        feed_dict=feed_dict
                     )
 
                     self.train_writer.add_summary(summaries_value, step)
@@ -203,12 +218,12 @@ class RNN(SequenceModel):
                             loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
 
                     if i % self.validation_step == 0:
-                        self.validation_eval(sess, summaries, validation_set, step)
+                        self.validation_eval(sess, summaries, validation_set, initial_states, initial_outputs, loss, step)
 
                     if i % self.checkpoint_step == 0:
                         SequenceModel.save(self, sess, step=self.global_step)
 
-    def validation_eval(self, session, summaries, dataset, step):
+    def validation_eval(self, session, summaries, dataset, initial_states, initial_outputs, loss, step):
         """
         Produce evaluation on the validation dataset.
 
@@ -216,23 +231,36 @@ class RNN(SequenceModel):
             session: the session object opened
             summaries: the summaries declared in the graph
             dataset: the dataset to use for validation
+            initial_states: the initial states of the graph model
+            initial_outputs: the initial outputs of the graph model
+            loss: the tensorflow operation used to compute the loss
             step: the step of summarize writing
 
         Returns:
             Nothing
         """
+        time0 = time()
         inputs, labels = SequenceModel.load_batch(dataset)
 
         feed_dict = {
             self.input: inputs,
-            self.label: labels
+            self.label: labels,
+            self.initial_outputs: initial_outputs
         }
+        feed_dict.update({i: d for i, d in zip(self.initial_states, initial_states)})
 
-        feed_dict['']
-
-        summaries_value = session.run(summaries, feed_dict=feed_dict)
+        loss_value, summaries_value = session.run(
+            [loss, summaries],
+            feed_dict=feed_dict
+        )
 
         self.validation_writer.add_summary(summaries_value, step)
+
+        time1 = time()
+
+        self.logger.info(
+            "Cost = {0} for evaluation set of size {1} in {2:.2f} seconds".format(
+                loss_value, len(dataset), time1 - time0)) if self.logger else None
 
     def predict(self, dataset):
         pass

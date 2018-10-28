@@ -11,6 +11,14 @@ class SequenceModel:
         Initialize a sequential model.
         """
         tf.reset_default_graph()
+        self.checkpoint_path = None
+        self.summary_path = None
+        self.global_step = None
+        self.name = None
+        self.debug = None
+        self.logger = None
+        self.saver = None
+        self.optimizer = None
 
     def build_model(self, input_seq, name="sequence_model"):
         pass
@@ -47,7 +55,7 @@ class SequenceModel:
         training_path = os.path.join(self.summary_path, "train", str(datetime.now()))
         validation_path = os.path.join(self.summary_path, "val", str(datetime.now()))
         return tf.summary.FileWriter(training_path), \
-               tf.summary.FileWriter(validation_path)
+            tf.summary.FileWriter(validation_path)
 
     def load(self, session):
         """
@@ -72,6 +80,22 @@ class SequenceModel:
         self.logger.info("Loaded model from %s at step %d" % (filename, step)
                          ) if self.logger else None
 
+    def save(self, session, step):
+        """
+        Persist the model variables values.
+
+        Args:
+            session: the tensorflow session
+            step: the global step as a tensor
+
+        Returns:
+            the path to the saved model
+        """
+        if not os.path.isdir(self.checkpoint_path):
+            os.mkdir(self.checkpoint_path)
+        checkpoint_path = os.path.join(self.checkpoint_path, self.name)
+        return self.saver.save(session, checkpoint_path, global_step=step)
+
     @staticmethod
     def load_batch(examples):
         """
@@ -86,8 +110,8 @@ class SequenceModel:
         inputs = []
         labels = []
         for example in examples:
-            input, label = example
-            inputs.append(input)
+            features, label = example
+            inputs.append(features)
             labels.append(label)
 
         return np.stack(inputs), np.stack(labels)
