@@ -11,8 +11,8 @@ class RNN(SequenceModel):
     def __init__(self, units, f_out, batch_size=2, time_steps=24, n_features=10, n_output=1,
                  with_prev_output=False, with_input=True, return_sequences=True,
                  n_epochs=1, validation_step=10, checkpoint_step=100, from_pretrained=False,
-                 optimizer_name="rmsprop", learning_rate=0.001, summary_path=".", checkpoint_path=".",
-                 name="rnn", logger=None, debug=False):
+                 optimizer_name="rmsprop", learning_rate=0.001, loss_name='mse',
+                 summary_path=".", checkpoint_path=".", name="rnn", logger=None, debug=False):
         """
         Initialize an RNN model.
         Args:
@@ -31,6 +31,7 @@ class RNN(SequenceModel):
             from_pretrained: whether to load pre trained model
             optimizer_name: the name of the optimizer
             learning_rate: the learning rate used by the optimizer
+            loss_name: the name of the loss to minimize
             summary_path: the path of the summary
             checkpoint_path: the path to the model checkpoint
             logger: the logging instance to trace
@@ -54,6 +55,7 @@ class RNN(SequenceModel):
         self.from_pretrained = from_pretrained
         self.optimizer_name = optimizer_name
         self.learning_rate = learning_rate
+        self.loss_name = loss_name
         self.summary_path = summary_path
         self.checkpoint_path = checkpoint_path
         self.name = name
@@ -84,18 +86,17 @@ class RNN(SequenceModel):
         # Model saver
         self.saver = tf.train.Saver()
 
-    def build_model(self, input_seq, name="rnn"):
+    def build_model(self, input_seq):
         """
         Build RNN graph.
 
         Args:
             input_seq: the input sequence tensor (batch, time step, features)
-            name: the scope name
 
         Returns:
             the model output
         """
-        with tf.variable_scope(name_or_scope=name):
+        with tf.variable_scope(name_or_scope=self.name):
 
             n_layers, n_cells = self.units.shape
             prev_layers_outputs = []
@@ -162,13 +163,13 @@ class RNN(SequenceModel):
 
         """
         # Build the graph model
-        output = self.build_model(self.input, name=self.name)
+        output = self.build_model(self.input)
 
         # Loss
-        loss = SequenceModel.compute_loss(output, self.label)
+        loss = SequenceModel.compute_loss(output, self.label, loss=self.loss_name)
 
         # Optimization
-        train_op = SequenceModel.compute_gradient(loss, self.global_step)
+        train_op = self.compute_gradient(loss, self.global_step)
 
         # Merge summaries
         summaries = tf.summary.merge_all()

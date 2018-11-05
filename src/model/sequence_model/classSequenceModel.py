@@ -117,7 +117,7 @@ class SequenceModel:
         return np.stack(inputs), np.stack(labels)
 
     @staticmethod
-    def compute_loss(output, label, loss='MSE'):
+    def compute_loss(output, label, loss='mse'):
         """
         Compute the loss operation.
 
@@ -134,6 +134,8 @@ class SequenceModel:
                 logits=output, labels=label
             ))
         elif loss == 'mse':
+            loss = tf.reduce_mean(tf.square(output - label))
+        else:
             loss = tf.reduce_mean(tf.square(output - label))
 
         tf.summary.scalar('Loss', loss)
@@ -164,20 +166,21 @@ class SequenceModel:
 
         return accuracy
 
-    def compute_gradient(self, loss, global_step):
+    def compute_gradient(self, loss, global_step, max_value=1.):
         """
         Compute gradient and update parameters.
 
         Args:
             loss: the loss to minimize
             global_step: the training step
+            max_value: the gradients max value
         Returns:
             the training operation
         """
-        grads_and_vars = self.optimizer.compute_gradients(loss)
-        self.logger.debug(grads_and_vars) if self.logger else None
-        return self.optimizer.apply_gradients(grads_and_vars,
-                                              global_step=global_step)
+        gvs = self.optimizer.compute_gradients(loss)
+        self.logger.debug(gvs) if self.logger else None
+        capped_gvs = [(tf.clip_by_value(grad, -max_value, max_value), var) for grad, var in gvs]
+        return self.optimizer.apply_gradients(capped_gvs, global_step=global_step)
 
     def fit(self, train_set, validation_set):
         """
