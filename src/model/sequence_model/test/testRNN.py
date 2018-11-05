@@ -135,9 +135,20 @@ class RNNTestCase(unittest.TestCase):
         n_features = 10
         n_output = 3
 
-        train_set = np.random.rand(batch_size, time_steps, n_features)
-        validation_set = np.random.rand(batch_size, time_steps, n_features)
-        initial_states = [np.random.rand(units[l][0]) for l in range(len(units))]
+        n_train = 100
+        n_valid = 100
+
+        train_set = [
+            (np.random.rand(time_steps, n_features), np.ones((time_steps, n_output)) * i)
+            for i in range(n_train)
+        ]
+
+        validation_set = [
+            (np.random.rand(time_steps, n_features), np.ones((time_steps, n_output)) * i)
+            for i in range(n_valid)
+        ]
+
+        initial_states = [np.random.rand(1, units[l][0]) for l in range(len(units))]
 
         rnn_1 = RNN(
             units, f_out, batch_size=batch_size, time_steps=time_steps, n_features=n_features,
@@ -146,6 +157,16 @@ class RNNTestCase(unittest.TestCase):
         )
 
         rnn_1.fit(train_set, validation_set, initial_states)
+
+        train_set = [
+            (np.random.rand(time_steps, n_features), np.ones(n_output) * i)
+            for i in range(n_train)
+        ]
+
+        validation_set = [
+            (np.random.rand(time_steps, n_features), np.ones(n_output) * i)
+            for i in range(n_valid)
+        ]
 
         rnn_2 = RNN(
             units, f_out, batch_size=batch_size, time_steps=time_steps, n_features=n_features,
@@ -169,8 +190,18 @@ class RNNTestCase(unittest.TestCase):
             [300, 150, 30, 150, 300]
         ]
 
-        initial_states = [np.random.rand(units[l][0]) for l in range(len(units))]
-        initial_outputs = np.zeros((len(units), batch_size, n_output))
+        train_set = [
+            (np.random.rand(time_steps, n_features), np.ones((time_steps, n_output)) * i)
+            for i in range(n_train)
+        ]
+
+        validation_set = [
+            (np.random.rand(time_steps, n_features), np.ones((time_steps, n_output)) * i)
+            for i in range(n_valid)
+        ]
+
+        initial_states = [np.random.rand(1, units[l][0]) for l in range(len(units))]
+        initial_outputs = np.zeros((len(units), n_output))
 
         rnn_4 = RNN(
             units, f_out, batch_size=batch_size, time_steps=time_steps, n_features=n_features,
@@ -179,13 +210,23 @@ class RNNTestCase(unittest.TestCase):
 
         rnn_4.fit(train_set, validation_set, initial_states, initial_outputs=initial_outputs)
 
+        train_set = [
+            (np.random.rand(time_steps, n_features), np.ones(n_output) * i)
+            for i in range(n_train)
+        ]
+
+        validation_set = [
+            (np.random.rand(time_steps, n_features), np.ones(n_output) * i)
+            for i in range(n_valid)
+        ]
+
         rnn_5 = RNN(
             units, f_out, batch_size=batch_size, time_steps=time_steps, n_features=n_features,
             n_output=n_output, with_prev_output=True, with_input=False, return_sequences=False,
             summary_path = SUMMARY_PATH, checkpoint_path = CHECKPOINT_PATH, name="rnn_5"
         )
 
-        rnn_5.fit(train_set, validation_set, initial_states)
+        rnn_5.fit(train_set, validation_set, initial_states, initial_outputs=initial_outputs)
 
         rnn_6 = RNN(
             units, f_out, batch_size=batch_size, time_steps=time_steps, n_features=n_features,
@@ -194,7 +235,6 @@ class RNNTestCase(unittest.TestCase):
         )
 
         rnn_6.fit(train_set, validation_set, initial_states)
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -179,7 +179,13 @@ class SequenceModel:
         """
         gvs = self.optimizer.compute_gradients(loss)
         self.logger.debug(gvs) if self.logger else None
-        capped_gvs = [(tf.clip_by_value(grad, -max_value, max_value), var) for grad, var in gvs]
+        capped_gvs = [
+            (
+                tf.clip_by_value(grad, -max_value, max_value) if grad is not None else grad,
+                var
+            )
+            for grad, var in gvs
+        ]
         return self.optimizer.apply_gradients(capped_gvs, global_step=global_step)
 
     def fit(self, train_set, validation_set):

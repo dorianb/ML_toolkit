@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from time import time
+import os
 
 from sequence_model.classSequenceModel import SequenceModel
 from sequence_model.classRNNCell import RNNCell
@@ -56,8 +57,8 @@ class RNN(SequenceModel):
         self.optimizer_name = optimizer_name
         self.learning_rate = learning_rate
         self.loss_name = loss_name
-        self.summary_path = summary_path
-        self.checkpoint_path = checkpoint_path
+        self.summary_path = os.path.join(summary_path, name)
+        self.checkpoint_path = os.path.join(checkpoint_path, name)
         self.name = name
         self.logger = logger
         self.debug = debug
@@ -148,7 +149,7 @@ class RNN(SequenceModel):
 
         return tf.reshape(
             tf.concat(layer_outputs, axis=1),
-            [self.batch_size, n_cells, self.n_output]
+            [-1, n_cells, self.n_output]
         ) if self.return_sequences else prev_output
 
     def fit(self, train_set, validation_set, initial_states, initial_outputs=None):
@@ -197,14 +198,21 @@ class RNN(SequenceModel):
                     time0 = time()
                     batch_examples = train_set[i - self.batch_size: i]
 
-                    feature_batch, label_batch = self.load_batch(batch_examples)
+                    feature_batch, label_batch = SequenceModel.load_batch(batch_examples)
 
                     feed_dict = {
                         self.input: feature_batch,
-                        self.label: label_batch,
-                        self.initial_outputs: initial_outputs
+                        self.label: label_batch
                     }
-                    feed_dict.update({i: d for i, d in zip(self.initial_states, initial_states)})
+                    feed_dict.update({
+                        i: np.repeat(d, self.batch_size, axis=0)
+                        for i, d in zip(self.initial_states, initial_states)
+                    })
+                    feed_dict.update({
+                        self.initial_outputs: np.repeat(
+                            initial_outputs, self.batch_size, axis=0
+                            ).reshape(initial_outputs.shape[0], self.batch_size, initial_outputs.shape[1])
+                    }) if self.with_prev_output and initial_outputs is not None else None
 
                     _, loss_value, summaries_value, step = sess.run([
                         train_op, loss, summaries, self.global_step],
@@ -245,15 +253,21 @@ class RNN(SequenceModel):
 
         feed_dict = {
             self.input: inputs,
-            self.label: labels,
-            self.initial_outputs: initial_outputs
+            self.label: labels
         }
-        feed_dict.update({i: d for i, d in zip(self.initial_states, initial_states)})
+        feed_dict.update({
+            i: np.repeat(d, len(dataset), axis=0)
+            for i, d in zip(self.initial_states, initial_states)
+        })
+        feed_dict.update({
+            self.initial_outputs: np.repeat(
+                initial_outputs, len(dataset), axis=0
+            ).reshape(
+                initial_outputs.shape[0], len(dataset), initial_outputs.shape[1]
+            )
+        }) if self.with_prev_output and initial_outputs is not None else None
 
-        loss_value, summaries_value = session.run(
-            [loss, summaries],
-            feed_dict=feed_dict
-        )
+        loss_value, summaries_value = session.run([loss, summaries], feed_dict=feed_dict)
 
         self.validation_writer.add_summary(summaries_value, step)
 
