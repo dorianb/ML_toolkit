@@ -126,6 +126,10 @@ class RNN(SequenceModel):
                         if t == 0 and with_prev_output:
                             prev_output = self.initial_outputs[l]
 
+                        if self.f_out == tf.nn.softmax:
+                            prev_output = SequenceModel.sample(prev_output)
+                            prev_output = tf.Print(prev_output, [prev_output])
+
                         input_t = input_seq[:, t, :] if self.with_input or t == 0 else prev_output
                         input_t = prev_layers_outputs[l-1][t] if l > 0 and self.with_input else input_t
 

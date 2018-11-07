@@ -19,6 +19,7 @@ class SequenceModel:
         self.logger = None
         self.saver = None
         self.optimizer = None
+        self.n_output = None
 
     def build_model(self, input_seq, name="sequence_model"):
         pass
@@ -115,6 +116,21 @@ class SequenceModel:
             labels.append(label)
 
         return np.stack(inputs), np.stack(labels)
+
+    def sample(self, p):
+        """
+        Sample an output from the probabilities estimates (used in classification).
+
+        Args:
+            p: a tensor of class probabilities (batch x nb classes)
+
+        Returns:
+            the  of the sampled prediction
+        """
+        elems = tf.convert_to_tensor(range(self.n_output))
+        samples = tf.multinomial(tf.log(p), 1)
+        indices = elems[tf.cast(samples, tf.int32)]
+        return tf.one_hot(indices, depth=self.n_output, on_value=1.0, off_value=0.0, axis=-1)
 
     @staticmethod
     def compute_loss(output, label, loss='mse'):

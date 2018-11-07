@@ -31,7 +31,7 @@ class RNNCell(Cell):
             prev_state: the previous state
             prev_output: the previous output
             name: the scope name
-            seed: the seed for randomized initializationsS
+            seed: the seed for randomized initializations
 
         Returns:
             a tuple with state and output if the last is computed
@@ -77,15 +77,12 @@ class RNNCell(Cell):
                 )
             else:
                 state_t = tf.nn.softsign(
-                    tf.matmul(input_t, w_input) +
-                    tf.matmul(prev_state, w_state) +
-                    b_x
+                    tf.matmul(input_t, w_input) + tf.matmul(prev_state, w_state) + b_x
                 )
 
             if self.return_output:
                 output_t = self.f_out(
-                    tf.matmul(tf.concat([input_t, state_t], axis=1), w_output) +
-                    b_y
+                    tf.matmul(tf.concat([input_t, state_t], axis=1), w_output) + b_y
                 )
 
                 return state_t, output_t
