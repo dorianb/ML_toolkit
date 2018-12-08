@@ -6,7 +6,7 @@ import numpy as np
 from skimage.filters import threshold_local
 
 
-class ComputerVision:
+class ImageClassification:
 
     def __init__(self, summary_path="", checkpoint_path=""):
         """

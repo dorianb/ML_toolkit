@@ -2,10 +2,11 @@ import os
 import tensorflow as tf
 import numpy as np
 from time import time
-from computer_vision.classComputerVision import ComputerVision
+from computer_vision.classImageClassification import ImageClassification
+slim = tf.contrib.slim
 
 
-class Vgg(ComputerVision):
+class Vgg(ImageClassification):
 
     """
     The Vgg model is convolution network. The architecture is described in the following
@@ -171,7 +172,7 @@ class Vgg(ComputerVision):
         Returns:
             the last layer of the model
         """
-        with tf.name_scope(name, "VggOp", [self.input]):
+        """with tf.name_scope(name, "VggOp", [self.input]):
 
             with tf.variable_scope("Parameters", reuse=tf.AUTO_REUSE):
 
@@ -407,6 +408,42 @@ class Vgg(ComputerVision):
                                       summarize=self.n_classes * self.batch_size) if self.debug else output
 
                     return output
+        """
+        with tf.variable_scope(name, 'vgg_16', [self.input]) as sc:
+            end_points_collection = sc.original_name_scope + '_end_points'
+            # Collect outputs for conv2d, fully_connected and max_pool2d.
+            with slim.arg_scope([slim.conv2d, slim.fully_connected, slim.max_pool2d],
+                                outputs_collections=end_points_collection):
+                net = slim.repeat(self.input, 2, slim.conv2d, 64, [3, 3], scope='conv1')
+                net = slim.max_pool2d(net, [2, 2], scope='pool1')
+                net = slim.repeat(net, 2, slim.conv2d, 128, [3, 3], scope='conv2')
+                net = slim.max_pool2d(net, [2, 2], scope='pool2')
+                net = slim.repeat(net, 3, slim.conv2d, 256, [3, 3], scope='conv3')
+                net = slim.max_pool2d(net, [2, 2], scope='pool3')
+                net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
+                net = slim.max_pool2d(net, [2, 2], scope='pool4')
+                net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
+                net = slim.max_pool2d(net, [2, 2], scope='pool5')
+
+                # Use conv2d instead of fully_connected layers.
+                net = slim.conv2d(net, 4096, [7, 7], padding=fc_padding, scope='fc6')
+                net = slim.dropout(net, 0.5, is_training=True,
+                                   scope='dropout6')
+                net = slim.conv2d(net, 4096, [1, 1], scope='fc7')
+                # Convert end_points_collection into a end_point dict.
+                end_points = slim.utils.convert_collection_to_dict(end_points_collection)
+
+                if self.n_classes:
+                    net = slim.dropout(net, 0.5, is_training=True,
+                                       scope='dropout7')
+                    net = slim.conv2d(net, self.n_classes, [1, 1],
+                                      activation_fn=None,
+                                      normalizer_fn=None,
+                                      scope='fc8')
+
+                    net = tf.squeeze(net, [1, 2], name='fc8/squeezed')
+                    end_points[sc.name + '/fc8'] = net
+                return net
 
     def compute_loss(self, logit, label):
         """
