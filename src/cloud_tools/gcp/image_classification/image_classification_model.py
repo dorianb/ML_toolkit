@@ -110,12 +110,7 @@ class Model(object):
       tensors.examples = tf.placeholder(tf.string, name='input', shape=(None,))
 
     if graph_mod == GraphMod.PREDICT:
-        inception_input, inception_embeddings = self.build_inception_graph()
-        # Build the Inception graph. We later add final training layers
-        # to this graph. This is currently used only for prediction.
-        # For training, we use pre-processed data, so it is not needed.
-        embeddings = inception_embeddings
-        tensors.input_jpeg = inception_input
+      pass
     else:
       # For training and evaluation we assume data is preprocessed, so the
       # inputs are tf-examples.
@@ -252,7 +247,8 @@ class Model(object):
   def build_eval_graph(self, data_paths, batch_size):
     return self.build_graph(data_paths, batch_size, GraphMod.EVALUATE)
 
-  def restore_from_checkpoint(self, session, trained_checkpoint_file):
+  def restore_from_checkpoint(self, session, inception_checkpoint_file,
+                              trained_checkpoint_file):
     """To restore model variables from the checkpoint file.
 
        The graph is assumed to consist of an inception model and other
@@ -261,10 +257,34 @@ class Model(object):
        we restore this from two checkpoint files.
     Args:
       session: The session to be used for restoring from checkpoint.
+      inception_checkpoint_file: Path to the checkpoint file for the Inception
+                                 graph.
       trained_checkpoint_file: path to the trained checkpoint for the other
                                layers.
     """
-    trained_vars = tf.contrib.slim.get_variables_to_restore()
+    inception_exclude_scopes = [
+        'InceptionV3/AuxLogits', 'InceptionV3/Logits', 'global_step',
+        'final_ops'
+    ]
+    reader = tf.train.NewCheckpointReader(inception_checkpoint_file)
+    var_to_shape_map = reader.get_variable_to_shape_map()
+
+    # Get all variables to restore. Exclude Logits and AuxLogits because they
+    # depend on the input data and we do not need to intialize them.
+    all_vars = tf.contrib.slim.get_variables_to_restore(
+        exclude=inception_exclude_scopes)
+    # Remove variables that do not exist in the inception checkpoint (for
+    # example the final softmax and fully-connected layers).
+    inception_vars = {
+        var.op.name: var
+        for var in all_vars if var.op.name in var_to_shape_map
+    }
+    inception_saver = tf.train.Saver(inception_vars)
+    inception_saver.restore(session, inception_checkpoint_file)
+
+    # Restore the rest of the variables from the trained checkpoint.
+    trained_vars = tf.contrib.slim.get_variables_to_restore(
+        exclude=inception_exclude_scopes + inception_vars.keys())
     trained_saver = tf.train.Saver(trained_vars)
     trained_saver.restore(session, trained_checkpoint_file)
 

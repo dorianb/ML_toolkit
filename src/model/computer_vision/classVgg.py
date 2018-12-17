@@ -5,6 +5,7 @@ from time import time
 
 from computer_vision.classComputerVision import ComputerVision
 from dataset_utils.functionImageUtils import load_image
+
 slim = tf.contrib.slim
 
 
@@ -625,8 +626,9 @@ class Vgg(ComputerVision):
             image_path, label_id)) if self.logger else None
 
         image = load_image(image_path, grayscale=self.grayscale,
-                           binarize=self.binarize, normalize=self.normalize,
-                           resize_dim=self.resize_dim)
+                                          binarize=self.binarize,
+                                          normalize=self.normalize,
+                                          resize_dim=self.resize_dim)
 
         label = np.zeros(self.n_classes)
         label[int(label_id)] = 1
@@ -668,4 +670,4 @@ class Vgg(ComputerVision):
         Returns:
             predictions array
         """
-
+        pass

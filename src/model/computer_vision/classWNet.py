@@ -116,7 +116,6 @@ class WNet(ComputerVision):
 
                 encoder_end_points.append([layer_1, layer_2, layer_3, layer_4, layer_5])
 
-
     def fit(self):
         pass
 
