@@ -1,0 +1,15 @@
+
+build
+venv
+*.log
+*.json
+.idea
+
+data/*
+!data/.gitkeep
+
+metadata/summaries/*
+!metadata/summaries/.gitkeep
+
+metadata/checkpoints/*
+!metadata/checkpoints/.gitkeep
