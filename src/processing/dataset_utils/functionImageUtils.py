@@ -33,6 +33,29 @@ def load_image(image_path, grayscale=True, binarize=False, normalize=False, resi
     Returns:
         an array
     """
+
+    """
+        image_reader = tf.WholeFileReader()
+
+        _, contents = image_reader.read(image_queue)
+
+        image = tf.image.decode_jpeg(contents, channels=0)
+
+        if isinstance(resize_dim, tuple):
+            image = tf.image.resize_bicubic(image, resize_dim)
+
+        if grayscale:
+            image = tf.image.rgb_to_grayscale(image)
+
+        if normalize:
+            mean, var = tf.nn.moments(image, axes=(0, 1))
+            image = tf.divide(
+                tf.subtract(image, mean),
+                tf.sqrt(var)
+            )
+
+        """
+
     image = Image.open(image_path)
 
     if isinstance(resize_dim, tuple):

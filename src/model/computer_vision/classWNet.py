@@ -1,3 +1,5 @@
+import os
+from time import time
 import tensorflow as tf
 
 from computer_vision.classComputerVision import ComputerVision
@@ -11,7 +13,9 @@ class WNet(ComputerVision):
     """
 
     def __init__(self, batch_size=2, n_channel=3, initializer_name="zeros",
-                 padding="SAME", k=2, name="WNet"):
+                 padding="SAME", k=2, from_pretrained=False, optimizer_name="rmsprop",
+                 learning_rate=0.001, n_epochs=10, checkpoint_step=10,
+                 metadata_path="", logger=None, name="WNet", debug=False):
         """
         Initialize an instance of WNet.
 
@@ -21,20 +25,51 @@ class WNet(ComputerVision):
             initializer_name: the name of the parameters' initializer
             padding: the padding algorithm name to use
             k: the number of classes
+            from_pretrained: whether to load pre-trained model
+            optimizer_name: the name of the optimizer
+            learning_rate: the learning rate
+            n_epochs: the number of epochs
+            checkpoint_step: the number of training step between checkpoints
+            metadata_path: the folder path where to save metadata
+            logger: a logging instance object
             name: the name of the object instance
+            debug: whether to activate the debug mode
         """
-        tf.reset_default_graph()
+        ComputerVision.__init__(summary_path="", checkpoint_path="")
 
         self.batch_size = batch_size
         self.n_channel = n_channel
         self.initializer_name = initializer_name
         self.padding = padding
         self.k = k
-
+        self.n_epochs = n_epochs
+        self.checkpoint_step = checkpoint_step
+        self.summary_path = os.path.join(metadata_path, "summaries", name)
+        self.checkpoint_path = os.path.join(metadata_path, "checkpoints", name)
         self.name = name
+        self.from_pretrained = from_pretrained
+        self.logger = logger
+        self.debug = debug
 
+        # Input
         self.input = tf.placeholder(shape=(self.batch_size, None, None, self.n_channel),
                                     dtype=tf.float32)
+
+        # Build model
+        self.segmentation, self.reconstruction = self.build_model()
+
+        # Global step
+        self.global_step = tf.Variable(0, dtype=tf.int32, name="global_step")
+        self.global_step = tf.add(self.global_step, tf.constant(1))
+
+        # Optimizer
+        self.optimizer = ComputerVision.get_optimizer(optimizer_name, learning_rate)
+
+        # Summary writers
+        self.train_writer, self.validation_writer = ComputerVision.get_writer(self)
+
+        # Model saver
+        self.saver = tf.train.Saver()
 
     def layer(self, input, initializer_name, filter_shape, filter_strides,
               kernel_size, separable_conv=False, training=True, link="max_pooling",
@@ -352,8 +387,81 @@ class WNet(ComputerVision):
 
         return l9_out, l18_out
 
-    def fit(self):
-        pass
+    def fit(self, training_set, validation_set):
+        """
+        Fit the model weights with input and labels.
 
-    def predict(self):
+        Args:
+            training_set: the training input and label
+            validation_set: the validation input and label
+
+        Returns: Nothing
+        """
+        # Loss
+        n_cut_loss = ComputerVision.compute_soft_ncut(self.segmentation, self.k)
+        reconstruction_loss = ComputerVision.compute_loss(self.input, self.reconstruction, loss_name="mse")
+
+        # Accuracy
+        accuracy = ComputerVision.compute_accuracy(self, self.input, self.reconstruction)
+
+        # Optimization
+        train_op_1 = ComputerVision.compute_gradient(self, n_cut_loss, self.global_step)
+        train_op_2 = ComputerVision.compute_gradient(self, reconstruction_loss, self.global_step)
+
+        # Merge summaries
+        summaries = tf.summary.merge_all()
+
+        # Initialize variables
+        init_g = tf.global_variables_initializer()
+        init_l = tf.local_variables_initializer()
+
+        with tf.Session() as sess:
+
+            sess.run(init_g)
+            sess.run(init_l)
+
+            self.train_writer.add_graph(sess.graph)
+
+            # Load existing model
+            ComputerVision.load(self, sess) if self.from_pretrained else None
+
+            for epoch in range(self.n_epochs):
+
+                for i in range(self.batch_size, len(training_set), self.batch_size):
+
+                    time0 = time()
+
+                    # Load batch
+                    batch_examples = training_set[i - self.batch_size: i]
+                    image_batch, label_batch = self.load_batch(batch_examples)
+
+                    # Update U-Enc
+                    _, n_cut_loss_value = sess.run([
+                        train_op_1, n_cut_loss],
+                        feed_dict={
+                            self.input: image_batch
+                        }
+                    )
+
+                    # Update U-Enc and U-Dec
+                    _, reconstruction_loss_value, summaries_value, accuracy_value, step = sess.run(
+                        [train_op_2, reconstruction_loss, summaries, accuracy, self.global_step],
+                        feed_dict={
+                            self.input: image_batch
+                        }
+                    )
+
+                    self.logger.info("Writing summary to {0}".format(self.summary_path)) if self.logger else None
+                    self.train_writer.add_summary(summaries_value, step)
+
+                    time1 = time()
+                    self.logger.info(
+                        "Accuracy = {0}, N-Cut Loss = {1}, Reconstruction Loss = {2} for batch {3} in {4:.2f} seconds".format(
+                            accuracy_value, n_cut_loss_value, reconstruction_loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
+
+                    if i % self.checkpoint_step == 0:
+
+                        ComputerVision.save(self, sess, step=self.global_step)
+
+    def predict(self, data_set):
         pass

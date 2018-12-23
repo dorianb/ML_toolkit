@@ -77,6 +77,7 @@ class RNN(SequenceModel):
 
         # Global step
         self.global_step = tf.Variable(0, dtype=tf.int32, name="global_step")
+        self.global_step = tf.add(self.global_step, tf.constant(1))
 
         # Optimizer
         self.optimizer = SequenceModel.get_optimizer(self.optimizer_name, self.learning_rate)
@@ -196,8 +197,6 @@ class RNN(SequenceModel):
             for epoch in range(self.n_epochs):
 
                 for i in range(self.batch_size, len(train_set), self.batch_size):
-
-                    self.global_step = tf.add(self.global_step, tf.constant(1))
 
                     time0 = time()
                     batch_examples = train_set[i - self.batch_size: i]

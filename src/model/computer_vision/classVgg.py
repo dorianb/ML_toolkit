@@ -96,6 +96,7 @@ class Vgg(ComputerVision):
 
         # Global step
         self.global_step = tf.Variable(0, dtype=tf.int32, name="global_step")
+        self.global_step = tf.add(self.global_step, tf.constant(1))
 
         # Optimizer
         self.optimizer = ComputerVision.get_optimizer(self.optimizer_name,
@@ -448,66 +449,6 @@ class Vgg(ComputerVision):
                     end_points[sc.name + '/fc8'] = net
                 return net
 
-    def compute_loss(self, logit, label):
-        """
-        Compute the loss operation.
-
-        Args:
-            logit: the tensor of class probabilities (bach_size, n_classes)
-            label: the tensor of labels (batch_size, n_classes)
-
-        Returns:
-            loss: the loss
-        """
-        loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=logit, labels=label
-        ))
-        # loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
-        #    logits=logit, labels=label
-        #))
-        tf.summary.scalar('Cross_entropy', loss)
-        return loss
-
-    def compute_accuracy(self, logit, label):
-        """
-        Compute the accuracy measure.
-
-        Args:
-            logit: the tensor of class probabilities (bach_size, n_classes)
-            label: the tensor of labels (batch_size, n_classes)
-
-        Returns:
-            accuracy: the accuracy metric measure
-
-        """
-        pred = tf.argmax(logit, axis=-1)
-        y = tf.argmax(label, axis=-1)
-
-        pred = tf.Print(pred, [pred], message="Prediction: ",
-                        summarize=2) if self.debug else pred
-        y = tf.Print(y, [y], message="Label: ",
-                     summarize=2) if self.debug else y
-
-        accuracy = tf.reduce_mean(tf.cast(tf.equal(y, pred), "float"))
-        tf.summary.scalar('Accuracy', accuracy)
-
-        return accuracy
-
-    def compute_gradient(self, loss, global_step):
-        """
-        Compute gradient and update parameters.
-
-        Args:
-            loss: the loss to minimize
-            global_step: the training step
-        Returns:
-            the training operation
-        """
-        grads_and_vars = self.optimizer.compute_gradients(loss)
-        self.logger.debug(grads_and_vars) if self.logger else None
-        return self.optimizer.apply_gradients(grads_and_vars,
-                                              global_step=global_step)
-
     def fit(self, training_set, validation_set):
         """
         Fit the model weights with input and labels.
@@ -525,7 +466,8 @@ class Vgg(ComputerVision):
                             "purpose only")
 
         # Loss
-        loss = self.compute_loss(self.model, self.label)
+        loss = ComputerVision.compute_loss(self.model, self.label,
+                                           loss_name="sigmoid_cross_entropy")
 
         # Compute probabilities
         logit = tf.nn.softmax(self.model)
@@ -533,10 +475,10 @@ class Vgg(ComputerVision):
                          summarize=self.n_classes * self.batch_size) if self.debug else logit
 
         # Accuracy
-        accuracy = self.compute_accuracy(logit, self.label)
+        accuracy = ComputerVision.compute_accuracy(self, logit, self.label)
 
         # Optimization
-        train_op = self.compute_gradient(loss, self.global_step)
+        train_op = ComputerVision.compute_gradient(self, loss, self.global_step)
 
         # Merge summaries
         summaries = tf.summary.merge_all()
@@ -558,8 +500,6 @@ class Vgg(ComputerVision):
             for epoch in range(self.n_epochs):
 
                 for i in range(self.batch_size, len(training_set), self.batch_size):
-
-                    self.global_step = tf.add(self.global_step, tf.constant(1))
 
                     time0 = time()
                     batch_examples = training_set[i - self.batch_size: i]

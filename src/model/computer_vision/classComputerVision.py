@@ -16,23 +16,18 @@ class ComputerVision:
             summary_path: the path to the summaries
             checkpoint_path: the path to the checkpoints
         """
+        tf.reset_default_graph()
+
         self.summary_path = summary_path
         self.checkpoint_path = checkpoint_path
         self.global_step = None
         self.saver = None
         self.logger = None
+        self.debug = None
+        self.optimizer = None
         self.name = "computer_vision"
 
     def build_model(self):
-        pass
-
-    def fit(self, training_set, validation_set):
-        pass
-
-    def load_batch(self, examples):
-        pass
-
-    def load_example(self, example):
         pass
 
     @staticmethod
@@ -120,68 +115,6 @@ class ComputerVision:
         return tf.summary.FileWriter(training_path), \
                tf.summary.FileWriter(validation_path)
 
-    @staticmethod
-    def load_image(image_path, grayscale=True, binarize=False, normalize=False,
-                   resize_dim=None):
-        """
-        Load an image as an array
-
-        Args:
-            image_path: an image path
-            grayscale: whether to load image as grayscale
-            binarize: whether to binarize the image
-            normalize: whether to normalize the image
-            resize_dim: tuple (width, height) to which resize the image
-
-        Returns:
-            an array
-        """
-
-        """
-        image_reader = tf.WholeFileReader()
-
-        _, contents = image_reader.read(image_queue)
-
-        image = tf.image.decode_jpeg(contents, channels=0)
-
-        if isinstance(resize_dim, tuple):
-            image = tf.image.resize_bicubic(image, resize_dim)
-
-        if grayscale:
-            image = tf.image.rgb_to_grayscale(image)
-
-        if normalize:
-            mean, var = tf.nn.moments(image, axes=(0, 1))
-            image = tf.divide(
-                tf.subtract(image, mean),
-                tf.sqrt(var)
-            )
-
-        """
-        image = Image.open(image_path)
-
-        if isinstance(resize_dim, tuple):
-            image = image.resize(resize_dim, resample=Image.BICUBIC)
-
-        if grayscale:
-            image = image.convert('L')
-            img = np.array(image)
-
-            if binarize:
-                block_size = 35
-                local_thresh = threshold_local(img, block_size, offset=10)
-                img = img > local_thresh
-
-            img = img.reshape((image.size[1], image.size[0], 1))
-
-        else:
-            img = np.array(image)
-
-        if normalize:
-            img = (img - np.mean(img, axis=(0, 1))) / np.std(img, axis=(0, 1))
-
-        return img
-
     def load(self, session):
         """
         Load the model variables values.
@@ -220,6 +153,133 @@ class ComputerVision:
             os.mkdir(self.checkpoint_path)
         checkpoint_path = os.path.join(self.checkpoint_path, self.name)
         return self.saver.save(session, checkpoint_path, global_step=step)
+
+    @staticmethod
+    def compute_soft_ncut(output, k, sigma_x):
+        """
+        Compute the soft normalized cut loss
+
+        Args:
+            output: a tensor representing an image with class probabilities for each pixel
+            k: an integer representing the number of classes
+            sigma_x: the scale of the spatial proximity
+        Returns:
+            the soft normalized cut loss tensorflow operation
+        """
+
+        """
+        def cond():
+            pass
+
+        def body():
+            pass
+
+
+
+        weights = tf.while_loop(
+            cond,
+            body,
+            tf.reshape(),
+            shape_invariants=None,
+            parallel_iterations=10,
+            back_prop=True,
+            swap_memory=False,
+            name=None,
+            maximum_iterations=None,
+            return_same_structure=False
+        )
+        weights =
+        loss = k - tf.reduce_sum(
+                tf.reduce_sum() / tf.reduce_sum()
+            )
+
+        tf.summary.scalar("soft_n_cut", loss)
+        return loss
+        """
+
+    @staticmethod
+    def compute_loss(output, label, loss_name="sigmoid_cross_entropy"):
+        """
+        Compute the loss operation.
+
+        Args:
+            output: a tensor representing an output
+            label: a tensor representing a label
+            loss_name: the name of the loss to compute
+        Returns:
+            loss: the loss
+        """
+        if loss_name == "sigmoid_cross_entropy":
+            loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=output, labels=label
+            ))
+        elif loss_name == "softmax_cross_entropy":
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
+                logits=output, labels=label
+            ))
+        elif loss_name == 'mse':
+            loss = tf.reduce_mean(tf.square(output - label))
+        else:
+            raise Exception("Unknown loss")
+
+        tf.summary.scalar(loss_name, loss)
+        return loss
+
+    def compute_accuracy(self, logit, label):
+        """
+        Compute the accuracy measure.
+
+        Args:
+            logit: the tensor of class probabilities (bach_size, n_classes)
+            label: the tensor of labels (batch_size, n_classes)
+
+        Returns:
+            accuracy: the accuracy metric measure
+
+        """
+        pred = tf.argmax(logit, axis=-1)
+        y = tf.argmax(label, axis=-1)
+
+        pred = tf.Print(pred, [pred], message="Prediction: ",
+                        summarize=2) if self.debug else pred
+        y = tf.Print(y, [y], message="Label: ",
+                     summarize=2) if self.debug else y
+
+        accuracy = tf.reduce_mean(tf.cast(tf.equal(y, pred), "float"))
+        tf.summary.scalar('Accuracy', accuracy)
+
+        return accuracy
+
+    def compute_gradient(self, loss, global_step, max_value=1.):
+        """
+        Compute gradient and update parameters.
+
+        Args:
+            loss: the loss to minimize
+            global_step: the training step
+            max_value: the gradients max value
+        Returns:
+            the training operation
+        """
+        gvs = self.optimizer.compute_gradients(loss)
+        self.logger.debug(gvs) if self.logger else None
+        capped_gvs = [
+            (
+                tf.clip_by_value(grad, -max_value, max_value) if grad is not None else grad,
+                var
+            )
+            for grad, var in gvs
+        ]
+        return self.optimizer.apply_gradients(capped_gvs, global_step=global_step)
+
+    def fit(self, training_set, validation_set):
+        pass
+
+    def load_batch(self, examples):
+        pass
+
+    def load_example(self, example):
+        pass
 
     def validation_eval(self, session, summaries, dataset, step):
         pass
