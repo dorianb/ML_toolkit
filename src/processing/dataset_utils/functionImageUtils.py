@@ -56,11 +56,14 @@ def load_image(image_path, grayscale=True, binarize=False, normalize=False, resi
 
         """
 
+    # Open image
     image = Image.open(image_path)
 
+    # Resize image
     if isinstance(resize_dim, tuple):
         image = image.resize(resize_dim, resample=Image.BICUBIC)
 
+    # Convert to grayscale and optionally binarize the image
     if grayscale:
         image = image.convert('L')
         img = np.array(image)
@@ -70,11 +73,17 @@ def load_image(image_path, grayscale=True, binarize=False, normalize=False, resi
             local_thresh = threshold_local(img, block_size, offset=10)
             img = img > local_thresh
 
-        img = img.reshape((image.size[1], image.size[0], 1))
-
     else:
         img = np.array(image)
 
+    # Reshape image from (width, height, channel) to (height, width, channel)
+    if len(img.shape) == 2:
+        img = img.reshape((image.size[1], image.size[0], 1))
+
+    elif len(img.shape) == 3:
+        img = img.reshape((image.size[1], image.size[0], img.shape[2]))
+
+    # Normalize image
     if normalize:
         img = (img - np.mean(img, axis=(0, 1))) / np.std(img, axis=(0, 1))
 
