@@ -1,8 +1,10 @@
 import os
 from time import time
+import numpy as np
 import tensorflow as tf
 
 from computer_vision.classComputerVision import ComputerVision
+from dataset_utils.functionImageUtils import load_image
 
 
 class WNet(ComputerVision):
@@ -15,6 +17,7 @@ class WNet(ComputerVision):
     def __init__(self, batch_size=2, n_channel=3, initializer_name="zeros",
                  padding="SAME", k=2, from_pretrained=False, optimizer_name="rmsprop",
                  learning_rate=0.001, n_epochs=10, checkpoint_step=10,
+                 grayscale=True, binarize=True, normalize=False, resize_dim=(224, 224),
                  metadata_path="", logger=None, name="WNet", debug=False):
         """
         Initialize an instance of WNet.
@@ -30,12 +33,16 @@ class WNet(ComputerVision):
             learning_rate: the learning rate
             n_epochs: the number of epochs
             checkpoint_step: the number of training step between checkpoints
+            grayscale: whether to load image with grayscale
+            binarize: whether to binarize the image
+            normalize: whether to normalize image
+            resize_dim: tuple of new width and height image, None otherwise
             metadata_path: the folder path where to save metadata
             logger: a logging instance object
             name: the name of the object instance
             debug: whether to activate the debug mode
         """
-        ComputerVision.__init__(summary_path="", checkpoint_path="")
+        ComputerVision.__init__(self, summary_path="", checkpoint_path="")
 
         self.batch_size = batch_size
         self.n_channel = n_channel
@@ -46,6 +53,10 @@ class WNet(ComputerVision):
         self.checkpoint_step = checkpoint_step
         self.summary_path = os.path.join(metadata_path, "summaries", name)
         self.checkpoint_path = os.path.join(metadata_path, "checkpoints", name)
+        self.grayscale = grayscale
+        self.binarize = binarize
+        self.normalize = normalize
+        self.resize_dim = resize_dim
         self.name = name
         self.from_pretrained = from_pretrained
         self.logger = logger
@@ -60,7 +71,6 @@ class WNet(ComputerVision):
 
         # Global step
         self.global_step = tf.Variable(0, dtype=tf.int32, name="global_step")
-        self.global_step = tf.add(self.global_step, tf.constant(1))
 
         # Optimizer
         self.optimizer = ComputerVision.get_optimizer(optimizer_name, learning_rate)
@@ -95,7 +105,7 @@ class WNet(ComputerVision):
         with tf.variable_scope(name):
 
             channel_multiplier = 1
-            conv = tf.concat([input, skip_input], axis=-1) if skip_input else input
+            conv = tf.concat([input, skip_input], axis=-1) if skip_input is not None else input
 
             if separable_conv:
 
@@ -117,7 +127,7 @@ class WNet(ComputerVision):
 
                 conv = tf.nn.conv2d(
                     conv,
-                    filters=ComputerVision.get_parameter(
+                    filter=ComputerVision.get_parameter(
                         name="filter_1", initializer_name=initializer_name,
                         shape=filter_shape
                     ),
@@ -125,6 +135,8 @@ class WNet(ComputerVision):
 
             conv = tf.nn.relu(conv)
             conv = tf.layers.batch_normalization(conv, training=training)
+            conv = tf.Print(conv, [tf.shape(conv)], message=name+" conv1 shape:",
+                           summarize=4) if self.debug else conv
 
             if separable_conv:
 
@@ -146,7 +158,7 @@ class WNet(ComputerVision):
 
                 conv = tf.nn.conv2d(
                     conv,
-                    filters=ComputerVision.get_parameter(
+                    filter=ComputerVision.get_parameter(
                         name="filter_2_1", initializer_name=initializer_name,
                         shape=filter_shape[:2] + filter_shape[-1:] + filter_shape[-1:]
                     ),
@@ -154,25 +166,33 @@ class WNet(ComputerVision):
 
             conv = tf.nn.relu(conv)
             conv = tf.layers.batch_normalization(conv, training=training)
+            conv = tf.Print(conv, [tf.shape(conv)], message=name + " conv2 shape:",
+                            summarize=4) if self.debug else conv
 
             if link == "max_pooling":
-                output = tf.nn.max_pool(conv, ksize=kernel_size, name=link)
+                output = tf.nn.max_pool(
+                    conv,
+                    ksize=kernel_size,
+                    strides=kernel_size,
+                    padding=self.padding,
+                    name=link
+                )
 
             elif link == "up_conv":
                 output = tf.nn.conv2d_transpose(
                     conv,
                     filter=ComputerVision.get_parameter(
                         name=link, initializer_name=initializer_name,
-                        shape=kernel_size[1:3] + filter_shape[-1:] / 2 + filter_shape[-1:]
+                        shape=kernel_size[1:3] + [filter_shape[-1] / 2] + filter_shape[-1:]
                     ),
-                    output_shape=tf.concat([tf.shape(conv)[0], tf.shape(conv)[1:3] * 2, filter_shape[-1:] / 2], 0),
-                    strides=filter_strides, padding=self.padding
+                    output_shape=tf.stack([tf.shape(conv)[0], tf.shape(conv)[1] * 2, tf.shape(conv)[2] * 2, filter_shape[-1] / 2], 0),
+                    strides=kernel_size, padding=self.padding
                 )
 
             elif link == "conv_soft":
                 conv = tf.nn.conv2d(
                     conv,
-                    filters=ComputerVision.get_parameter(
+                    filter=ComputerVision.get_parameter(
                         name=link, initializer_name=initializer_name,
                         shape=[1, 1] + filter_shape[-1:] + [self.k]
                     ),
@@ -182,7 +202,7 @@ class WNet(ComputerVision):
             elif link == "conv":
                 output = tf.nn.conv2d(
                     conv,
-                    filters=ComputerVision.get_parameter(
+                    filter=ComputerVision.get_parameter(
                         name=link, initializer_name=initializer_name,
                         shape=[1, 1] + filter_shape[-1:] + [self.n_channel]
                     ),
@@ -191,6 +211,8 @@ class WNet(ComputerVision):
             else:
                 output = conv
 
+            output = tf.Print(output, [tf.shape(output)], message=name+" output "+link+" shape:",
+                        summarize=4) if self.debug else output
             return output, conv
 
     def build_model(self):
@@ -387,6 +409,42 @@ class WNet(ComputerVision):
 
         return l9_out, l18_out
 
+    def load_example(self, image_path):
+        """
+        Load the example.
+
+        Args:
+            image_path: an image path
+
+        Returns:
+            the example image array and label
+        """
+        self.logger.info("Loading example: {0}".format(image_path)) if self.logger else None
+
+        image = load_image(
+            image_path, grayscale=self.grayscale, binarize=self.binarize,
+            normalize=self.normalize, resize_dim=self.resize_dim
+        )
+
+        return image
+
+    def load_batch(self, examples):
+        """
+        Load the batch examples.
+
+        Args:
+            examples: the example in the batch
+
+        Returns:
+            the batch examples
+        """
+        images = []
+        for example in examples:
+            image = self.load_example(example)
+            images.append(image)
+
+        return np.stack(images)
+
     def fit(self, training_set, validation_set):
         """
         Fit the model weights with input and labels.
@@ -398,15 +456,18 @@ class WNet(ComputerVision):
         Returns: Nothing
         """
         # Loss
-        n_cut_loss = ComputerVision.compute_soft_ncut(self.segmentation, self.k)
+        #n_cut_loss = ComputerVision.compute_soft_ncut(self.segmentation, self.k)
         reconstruction_loss = ComputerVision.compute_loss(self.input, self.reconstruction, loss_name="mse")
 
         # Accuracy
         accuracy = ComputerVision.compute_accuracy(self, self.input, self.reconstruction)
 
         # Optimization
-        train_op_1 = ComputerVision.compute_gradient(self, n_cut_loss, self.global_step)
-        train_op_2 = ComputerVision.compute_gradient(self, reconstruction_loss, self.global_step)
+        #train_op_1 = ComputerVision.compute_gradient(self, n_cut_loss, self.global_step, max_value=1.0)
+        train_op_2 = ComputerVision.compute_gradient(self, reconstruction_loss, self.global_step, max_value=1.0)
+
+        # Update global step
+        # self.global_step = tf.add(self.global_step, tf.constant(1))
 
         # Merge summaries
         summaries = tf.summary.merge_all()
@@ -433,15 +494,17 @@ class WNet(ComputerVision):
 
                     # Load batch
                     batch_examples = training_set[i - self.batch_size: i]
-                    image_batch, label_batch = self.load_batch(batch_examples)
+                    image_batch = self.load_batch(batch_examples)
 
                     # Update U-Enc
-                    _, n_cut_loss_value = sess.run([
+                    """
+                   _, n_cut_loss_value = sess.run([
                         train_op_1, n_cut_loss],
                         feed_dict={
                             self.input: image_batch
                         }
                     )
+                    """
 
                     # Update U-Enc and U-Dec
                     _, reconstruction_loss_value, summaries_value, accuracy_value, step = sess.run(
@@ -457,7 +520,12 @@ class WNet(ComputerVision):
                     time1 = time()
                     self.logger.info(
                         "Accuracy = {0}, N-Cut Loss = {1}, Reconstruction Loss = {2} for batch {3} in {4:.2f} seconds".format(
-                            accuracy_value, n_cut_loss_value, reconstruction_loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
+                            accuracy_value,
+                            0, # n_cut_loss_value,
+                            reconstruction_loss_value,
+                            i / self.batch_size,
+                            time1 - time0)
+                    ) if self.logger else None
 
                     if i % self.checkpoint_step == 0:
 
