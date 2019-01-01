@@ -19,13 +19,14 @@ def plot_image(image, gray=False):
     return plt.imshow(image, cmap=cmap)
 
 
-def load_image(image_path, grayscale=True, binarize=False, normalize=False, resize_dim=None):
+def load_image(image_path, grayscale=True, rgb=False, binarize=False, normalize=False, resize_dim=None):
     """
     Load an image as an array
 
     Args:
         image_path: an image path
         grayscale: whether to load image as grayscale
+        rgb: whether to load image as rgb
         binarize: whether to binarize the image
         normalize: whether to normalize the image
         resize_dim: tuple (width, height) to which resize the image
@@ -72,6 +73,10 @@ def load_image(image_path, grayscale=True, binarize=False, normalize=False, resi
             block_size = 35
             local_thresh = threshold_local(img, block_size, offset=10)
             img = img > local_thresh
+
+    elif rgb:
+        image = image.convert('RGB')
+        img = np.array(image)
 
     else:
         img = np.array(image)
