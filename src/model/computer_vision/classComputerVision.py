@@ -1,9 +1,6 @@
 import os
 from datetime import datetime
-from PIL import Image
 import tensorflow as tf
-import numpy as np
-from skimage.filters import threshold_local
 
 
 class ComputerVision:
@@ -65,7 +62,6 @@ class ComputerVision:
         """
         initializer = ComputerVision.get_initializer(initializer_name)
         variable = tf.get_variable(name, shape=shape, dtype=tf.float32, initializer=initializer)
-        ComputerVision.variable_summaries(variable, name)
         return variable
 
     @staticmethod
@@ -112,8 +108,7 @@ class ComputerVision:
         """
         training_path = os.path.join(self.summary_path, "train", str(datetime.now()))
         validation_path = os.path.join(self.summary_path, "val", str(datetime.now()))
-        return tf.summary.FileWriter(training_path), \
-               tf.summary.FileWriter(validation_path)
+        return tf.summary.FileWriter(training_path), tf.summary.FileWriter(validation_path)
 
     def load(self, session):
         """
@@ -240,10 +235,8 @@ class ComputerVision:
         pred = tf.argmax(logit, axis=-1)
         y = tf.argmax(label, axis=-1)
 
-        pred = tf.Print(pred, [pred], message="Prediction: ",
-                        summarize=2) if self.debug else pred
-        y = tf.Print(y, [y], message="Label: ",
-                     summarize=2) if self.debug else y
+        pred = tf.Print(pred, [pred], message="Prediction: ", summarize=2) if self.debug else pred
+        y = tf.Print(y, [y], message="Label: ", summarize=2) if self.debug else y
 
         accuracy = tf.reduce_mean(tf.cast(tf.equal(y, pred), "float"))
         tf.summary.scalar('Accuracy', accuracy)

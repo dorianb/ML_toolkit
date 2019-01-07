@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from computer_vision.classComputerVision import ComputerVision
-from dataset_utils.functionImageUtils import load_image
+from dataset_utils import functionImageUtils as fiu
 
 
 class WNet(ComputerVision):
@@ -17,7 +17,7 @@ class WNet(ComputerVision):
     def __init__(self, batch_size=2, n_channel=3, initializer_name="zeros",
                  padding="SAME", k=2, from_pretrained=False, optimizer_name="rmsprop",
                  learning_rate=0.001, n_epochs=10, checkpoint_step=10,
-                 grayscale=True, binarize=True, normalize=False, resize_dim=(224, 224),
+                 grayscale=True, rgb=False, binarize=True, normalize=False, resize_dim=(224, 224),
                  metadata_path="", logger=None, name="WNet", debug=False):
         """
         Initialize an instance of WNet.
@@ -34,6 +34,7 @@ class WNet(ComputerVision):
             n_epochs: the number of epochs
             checkpoint_step: the number of training step between checkpoints
             grayscale: whether to load image with grayscale
+            rgb: whether to load image with rgbscale
             binarize: whether to binarize the image
             normalize: whether to normalize image
             resize_dim: tuple of new width and height image, None otherwise
@@ -54,6 +55,7 @@ class WNet(ComputerVision):
         self.summary_path = os.path.join(metadata_path, "summaries", name)
         self.checkpoint_path = os.path.join(metadata_path, "checkpoints", name)
         self.grayscale = grayscale
+        self.rgb = rgb
         self.binarize = binarize
         self.normalize = normalize
         self.resize_dim = resize_dim
@@ -80,6 +82,32 @@ class WNet(ComputerVision):
 
         # Model saver
         self.saver = tf.train.Saver()
+
+    def input_pipeline(self, filenames, min_after_dequeue=10000):
+        """
+        Defines an input pipeline for image processing.
+
+        Args:
+            filenames: a list of filenames
+            min_after_dequeue: defines how big a buffer will randomly sample
+
+        Returns:
+            tensorflow operation representing an image reading and processing pipeline
+        """
+        filename_queue = tf.train.string_input_producer(
+            filenames, num_epochs=self.n_epochs, shuffle=True)
+
+        example = fiu.read_image(
+            filename_queue, grayscale=self.grayscale, rgb=self.rgb,
+            binarize=self.binarize, normalize=self.normalize,
+            resize_dim=self.resize_dim, n_multiple_dim=16)
+
+        example_batch = tf.train.shuffle_batch(
+            [example], batch_size=self.batch_size,
+            capacity=min_after_dequeue + 3 * self.batch_size,
+            min_after_dequeue=min_after_dequeue)
+
+        return example_batch
 
     def layer(self, input, initializer_name, filter_shape, filter_strides,
               kernel_size, separable_conv=False, training=True, link="max_pooling",
@@ -419,12 +447,15 @@ class WNet(ComputerVision):
         Returns:
             the example image array and label
         """
-        self.logger.info("Loading example: {0}".format(image_path)) if self.logger else None
-
-        image = load_image(
-            image_path, grayscale=self.grayscale, binarize=self.binarize,
-            normalize=self.normalize, resize_dim=self.resize_dim
+        image = fiu.load_image(
+            image_path, grayscale=self.grayscale, rgb=self.rgb,
+            binarize=self.binarize, normalize=self.normalize,
+            resize_dim=self.resize_dim, n_multiple_dim=16
         )
+
+        self.logger.info("Loaded image {0} with shape ({1}, {2}, {3})".format(
+            image_path, image.shape[0], image.shape[1], image.shape[2])
+        ) if self.logger else None
 
         return image
 

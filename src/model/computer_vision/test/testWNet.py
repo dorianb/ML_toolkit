@@ -76,7 +76,7 @@ class WNetTestCase(unittest.TestCase):
             batch_size=1, n_channel=3, initializer_name="zeros",
             padding="SAME", k=2, from_pretrained=False, optimizer_name="rmsprop",
             learning_rate=0.001, n_epochs=1, checkpoint_step=10,
-            grayscale=False, binarize=False, normalize=False, resize_dim=(224, 224),
+            grayscale=False, rgb=True, binarize=False, normalize=False, resize_dim=(224, 224),
             metadata_path=METADATA_PATH, logger=None, name="WNet", debug=True)
 
         wnet_2.fit(training_set, validation_set)
