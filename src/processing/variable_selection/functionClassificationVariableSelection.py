@@ -2,6 +2,27 @@ import pandas as pd
 import numpy as np
 
 
+def filter_correlated_variables(df, features_name, threshold=0.9):
+    """
+    filter variable from data set which overpass a correlation threshold.
+
+    Args:
+        df: a pandas dataframe data set
+        features_name: a list of variable names
+        threshold: the correlation threshold from which variables are filtered
+    Returns:
+        the features name filtered
+    """
+    features_to_keep = set(features_name)
+
+    corr = df[features_name].corr(method="pearson").abs()
+    for f1 in features_name:
+        for f2 in features_name:
+            if f1 != f2 and corr.loc[f1, f2] > threshold and f2 in features_to_keep and f1 in features_to_keep:
+                print("%s is too much correlated to %s" % (f2, f1))
+                features_to_keep.remove(f2)
+    return list(features_to_keep)
+
 def information_value(X, y):
     """
     Compute the information value of a categorical variable for a binary variable to predict.

@@ -1,6 +1,138 @@
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 from scipy.stats import t
 
+
+def explicability(weights, columns, first=10):
+    """
+    Representer le poids des variables explicatives
+    """
+    weights = weights.reshape(-1)
+    idx = weights.argsort()[::-1][:first]
+    x = np.arange(first)
+    y = weights[idx]
+    labels = columns[idx]
+
+    plt.close('all')
+    fig, ax = plt.subplots(figsize=(18, 4))
+
+    ax.bar(x, y, width=0.5, align='center')
+    ax.set_xlabel(u"Variables explicatives")
+    ax.set_ylabel(u"Poids")
+
+    plt.xticks(x, labels, rotation=80)
+    plt.title(u"Poids des variables explicatives")
+    plt.show()
+
+    filename = "features_weights.csv"
+    features_weights = []
+    with open(filename, 'w') as f:
+        for x in zip(labels, y):
+            f.write(x[0])
+            f.write("\t")
+            f.write(str(x[1]))
+            f.write("\n")
+            features_weights.append(x)
+    return labels
+
+
+def score_with_components(clf, X, y, X_test, y_test, columns, weights, M=10, first=10):
+    """
+    Calculer les scores en fonction du nombre de composants
+    """
+    dict_feat_import = {
+        'feature_names': list(columns),
+        'feat_importance': list(weights)
+    }
+
+    feat_import_df = pd.DataFrame.from_dict(dict_feat_import, orient='columns')
+    sort_feat_import_df = feat_import_df.sort_values(by=['feat_importance'], ascending=[0]).reset_index(drop=True)
+    sorted_vect_importance = np.sort(weights, kind='heapsort')
+
+    sorted_vect_importance[:] = sorted_vect_importance[::-1]
+    score_mean = []
+    error_on_mean_score = []
+    n_th_most_important_features = []
+    last_included_feat = []
+
+    df_X = pd.DataFrame(X, columns=columns)
+    df_y = pd.DataFrame(y)
+
+    df_X_test = pd.DataFrame(X_test, columns=columns)
+    df_y_test = pd.DataFrame(y_test)
+
+    for ind in range(first):
+        if ind % 10 == 0:
+            print('ind = ' + ind.__str__())
+
+        last_included_feat.append(list(sort_feat_import_df['feature_names'].head(ind + 1))[-1])
+        X_new = df_X[list(sort_feat_import_df['feature_names'].head(ind + 1))]
+        X_new_test = df_X_test[list(sort_feat_import_df['feature_names'].head(ind + 1))]
+
+        scores = []
+        for m in range(M):
+            clf.fit(X_new, np.ravel(df_y))
+
+            scores.append(clf.score(X_new_test, np.ravel(df_y_test)))
+
+        error_on_mean_score.append(np.std(scores) / np.sqrt(M - 1))
+        score_mean.append(np.mean(scores))
+        n_th_most_important_features.append(ind + 1)
+
+    return n_th_most_important_features, score_mean, error_on_mean_score, sort_feat_import_df
+
+
+def plot_score_with_components(n_th_most_important_features, score_mean,
+                               error_on_mean_score, sort_feat_import_df):
+    """
+    Tracer les scores en fonction du nombre de composants
+    """
+    x = n_th_most_important_features
+    y = score_mean
+    yerr = error_on_mean_score
+    plt.clf()
+    plt.close()
+    plt.close('all')
+
+    fig = plt.figure(figsize=(22.0, 13.0))
+    plt.errorbar(x, y, yerr=yerr, fmt='o', linestyle='-', color='b')
+    plt.title('mean score for n-th most important features', fontsize=22)
+    ax = plt.gca()
+    ax.legend_ = None
+    plt.xlabel('nb of components considered ', fontsize=22)
+    plt.ylabel('scores', fontsize=22)
+    plt.legend(numpoints=1, loc=2)  # numpoints = 1 for nicer display
+    axes = plt.gca()
+    axes.set_xlim([0, sort_feat_import_df.shape[0]])
+    plt.tight_layout()
+    plt.show()
+
+    plt.clf()
+    plt.close()
+    plt.close('all')
+
+
+def filter_correlated_variables(df, features_name, threshold=0.9):
+    """
+    filter variable from data set which overpass a correlation threshold.
+
+    Args:
+        df: a pandas dataframe data set
+        features_name: a list of variable names
+        threshold: the correlation threshold from which variables are filtered
+    Returns:
+        the features name filtered
+    """
+    features_to_keep = set(features_name)
+
+    corr = df[features_name].corr(method="pearson").abs()
+    for f1 in features_name:
+        for f2 in features_name:
+            if f1 != f2 and corr.loc[f1, f2] > threshold and f2 in features_to_keep and f1 in features_to_keep:
+                print("%s is too much correlated to %s" % (f2, f1))
+                features_to_keep.remove(f2)
+    return list(features_to_keep)
 
 def compute_tstats(X, beta, u):
     """
