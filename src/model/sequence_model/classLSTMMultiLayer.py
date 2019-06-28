@@ -3,10 +3,10 @@ from time import time
 import numpy as np
 
 from sequence_model.classSequenceModel import SequenceModel
-from sequence_model.classLSTMCell import LSTMCell
+from sequence_model.classLSTMLayer import LSTMLayer
 
 
-class LSTM(SequenceModel):
+class LSTMMultiLayer(SequenceModel):
 
     def __init__(self, units_per_cell, batch_size, time_steps, n_features, n_layers=1, is_sequence_output=True,
                  n_output=1, f_out="identity", optimizer_name="rmsprop", learning_rate=0.1,
@@ -100,34 +100,23 @@ class LSTM(SequenceModel):
         Returns:
             the output tensor as a sequence or not
         """
-        outputs = []
+        outputs = None
         with tf.variable_scope(name):
+            for l in range(self.n_layers):
+                is_sequence_output = True if l < self.n_layers - 1 else self.is_sequence_output
+                input = self.input if l == 0 else tf.reshape(tf.concat(outputs, axis=1),
+                                                             shape=(-1, self.time_steps, self.n_output))
+                cell = self.initial_cell
+                output = self.initial_output
 
-            cell_t = self.initial_cell
-            output_t = self.initial_output
+                layer = LSTMLayer(units_per_cell=self.units_per_cell, is_sequence_output=is_sequence_output,
+                                  return_states=l < self.n_layers - 1,
+                                  time_steps=self.time_steps, n_output=self.n_output, f_out=self.f_out,
+                                  seed=self.seed + l * self.time_steps)
 
-            for i in range(self.n_cells):
+                outputs = layer.build(input, cell, output, name="rnn_layer_" + str(l))
 
-                input_t = self.input[:, i, :]
-
-                if i < self.n_cells - 1 and not self.is_sequence_output:
-                    lstm_cell = LSTMCell(units=self.units_per_cell, f_out=self.f_out, return_output=False,
-                                         input_keep_prob=self.input_keep_prob, cell_keep_prob=self.cell_keep_prob,
-                                         output_keep_prob=self.output_keep_prob, y_keep_prob=self.y_keep_prob,
-                                         seed=self.seed + i)
-                    output_t, cell_t = lstm_cell.build(input_t, cell_t, output_t, name="lstm_cell_" + str(i))
-
-                else:
-                    lstm_cell = LSTMCell(units=self.units_per_cell, f_out=self.f_out, return_output=True,
-                                         input_keep_prob=self.input_keep_prob, cell_keep_prob=self.cell_keep_prob,
-                                         output_keep_prob=self.output_keep_prob, y_keep_prob=self.y_keep_prob,
-                                         seed=self.seed + i)
-
-                    output_t, cell_t, y_t = lstm_cell.build(input_t, cell_t, output_t, name="lstm_cell_" + str(i))
-
-                    outputs.append(y_t)
-
-            return outputs
+        return outputs
 
     def fit(self, training_set, validation_set):
         """
@@ -153,12 +142,24 @@ class LSTM(SequenceModel):
 
         train_op = SequenceModel.compute_gradient(self, loss, self.global_step)
 
+        self.global_step = tf.add(self.global_step, tf.constant(1))
+
         # Merge summaries
         summaries = tf.summary.merge_all()
 
         # Initialize variables
         init_g = tf.global_variables_initializer()
         init_l = tf.local_variables_initializer()
+
+        # Initialize initial cell and output
+        initial_output = np.zeros(shape=(self.batch_size, self.units_per_cell), dtype=np.float32)
+        initial_cell = np.zeros(shape=(self.batch_size, self.units_per_cell), dtype=np.float32)
+
+        initial_output_val = np.zeros(shape=(len(validation_set), self.units_per_cell), dtype=np.float32)
+        initial_cell_val = np.zeros(shape=(len(validation_set), self.units_per_cell), dtype=np.float32)
+
+        # load validation set
+        input_val, label_val = self.load_batch(validation_set)
 
         with tf.Session() as sess:
 
@@ -176,8 +177,6 @@ class LSTM(SequenceModel):
 
                 for i in range(self.batch_size, len(training_set), self.batch_size):
 
-                    self.global_step = tf.add(self.global_step, tf.constant(1))
-
                     time0 = time()
                     batch_input, batch_label = self.load_batch(training_set[i - self.batch_size: i])
 
@@ -186,8 +185,8 @@ class LSTM(SequenceModel):
                         feed_dict={
                             self.input: batch_input,
                             self.label: batch_label,
-                            self.initial_output: np.zeros(shape=(self.batch_size, self.units_per_cell), dtype=np.float32),
-                            self.initial_cell: np.zeros(shape=(self.batch_size, self.units_per_cell), dtype=np.float32)
+                            self.initial_output: initial_output,
+                            self.initial_cell: initial_cell
                         },
                         options=run_opts,
                     )
@@ -200,19 +199,23 @@ class LSTM(SequenceModel):
                             loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
 
                     if i % self.validation_step == 0:
-                        self.validation_eval(sess, summaries, validation_set, metrics, step)
+                        self.validation_eval(sess, summaries, input_val, label_val, initial_cell_val,
+                                             initial_output_val, metrics, step)
 
                     if i % self.checkpoint_step == 0:
                         SequenceModel.save(self, sess, step=self.global_step)
 
-    def validation_eval(self, session, summaries, dataset, metrics, step):
+    def validation_eval(self, session, summaries, input_val, label_val, initial_cell_val, initial_output_val, metrics, step):
         """
         Produce evaluation on the validation dataset.
 
         Args:
             session: the session object opened
             summaries: the summaries declared in the graph
-            dataset: the dataset to use for validation
+            input_val: the input to use for validation
+            label_val: the label to use for validation
+            initial_cell_val: the initial cell of validation set
+            initial_output_val: the initial output of validation set
             metrics: dictionary of tensorflow operation to compute the metrics
             step: the step of summarize writing
         Returns:
@@ -221,15 +224,12 @@ class LSTM(SequenceModel):
         run_opts = tf.RunOptions(report_tensor_allocations_upon_oom=True)
 
         time0 = time()
-        inputs, labels = self.load_batch(dataset)
-        initial_output_val = np.zeros(shape=(len(inputs), self.units_per_cell), dtype=np.float32)
-        initial_cell_val = np.zeros(shape=(len(inputs), self.units_per_cell), dtype=np.float32)
 
         values = session.run(
             list(metrics.values()) + [summaries],
             feed_dict={
-                self.input: inputs,
-                self.label: labels,
+                self.input: input_val,
+                self.label: label_val,
                 self.initial_output: initial_output_val,
                 self.initial_cell: initial_cell_val
             },
@@ -239,7 +239,7 @@ class LSTM(SequenceModel):
 
         self.logger.info("{0} for evaluation os size {1} in {2:.2f} seconds".format(
             "; ".join([k + " = " + str(values[i]) for i, k in enumerate(metrics.keys())]),
-            inputs.shape[0], time1 - time0)) if self.logger else None
+            input_val.shape[0], time1 - time0)) if self.logger else None
 
         self.validation_writer.add_summary(values[-1], step)
 

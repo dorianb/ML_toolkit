@@ -1,191 +1,268 @@
-import tensorflow as tf
-import numpy as np
 import os
 from datetime import datetime
+import tensorflow as tf
+import logging
+import numpy as np
+import psutil
+from collections import OrderedDict
 
 
 class SequenceModel:
 
-    def __init__(self):
+    def __init__(self, name, debug):
         """
-        Initialize a sequential model.
+        The initialization of a sequential model.
+        Args:
+            name: name of the model
+            debug: debug mode
         """
-        tf.reset_default_graph()
-        self.checkpoint_path = None
-        self.summary_path = None
-        self.global_step = None
-        self.name = None
-        self.debug = None
-        self.logger = None
-        self.saver = None
+        self.summary_path = ""
+        self.checkpoint_path = ""
         self.optimizer = None
-        self.n_output = None
+        self.global_step = None
+        self.saver = None
+        self.name = name
 
-    def build_model(self, input_seq, name="sequence_model"):
+        self.logger = logging.Logger(name, level=logging.DEBUG if debug else logging.INFO)
+
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG if debug else logging.INFO)
+        self.logger.addHandler(console_handler)
+
+        file_handler = logging.FileHandler(name + ".log")
+        file_handler.setLevel(logging.DEBUG)
+        self.logger.addHandler(file_handler)
+
+    def build_model(self):
         pass
 
     @staticmethod
-    def get_optimizer(name="adam", learning_rate=0.1):
+    def memory():
         """
-        Get the optimizer object corresponding. If unknown optimizer, raise an exception.
+        Print memory usage
+        """
+        pid = os.getpid()
+        py = psutil.Process(pid)
+        memoryUse = py.memory_info()[0] / (1024.0 ** 3)
+        print('memory use:', memoryUse)
+
+    @staticmethod
+    def get_parameter(shape, initializer, name, seed=42):
+        """
+        Get the parameter like weight or bias.
 
         Args:
-            name: name of the optimizer
-            learning_rate: the learning rate
+            shape: shape of tensor as tuple
+            initializer: initializer of tensor as string
+            name: name of the parameter as string
+            seed: the seed for randomized initializers
+
         Returns:
-            a tensorflow optimizer object
+            tensor
         """
-        if name == "adam":
-            return tf.train.AdamOptimizer(learning_rate=learning_rate)
-        elif name == "adadelta":
-            return tf.train.AdadeltaOptimizer(learning_rate=learning_rate)
-        elif name == "gradientdescent":
-            return tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
-        elif name == "rmsprop":
-            return tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+
+        if initializer == "uniform":
+            initializer = tf.random_uniform_initializer(seed=seed)
+        elif initializer == "normal":
+            initializer = tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=seed)
+        elif initializer == "orthogonal":
+            initializer = tf.orthogonal_initializer()
+        elif initializer == "glorot_uniform":
+            initializer = tf.glorot_uniform_initializer()
+        elif initializer == "zeros":
+            initializer = tf.zeros_initializer()
         else:
-            raise Exception("The optimizer is unknown")
+            initializer = tf.zeros_initializer()
 
-    def get_writer(self):
-        """
-        Get the training and validation summaries writers.
-
-        Returns:
-            Tensorflow FileWriter object
-        """
-        training_path = os.path.join(self.summary_path, "train", str(datetime.now()))
-        validation_path = os.path.join(self.summary_path, "val", str(datetime.now()))
-        return tf.summary.FileWriter(training_path), \
-            tf.summary.FileWriter(validation_path)
-
-    def load(self, session):
-        """
-        Load the model variables values.
-
-        Args:
-            session: the tensorflow session
-
-        Returns:
-            Nothing
-        """
-        step = sorted([
-            int(filename.split(self.name)[1].split("-")[1].split(".")[0])
-            for filename in os.listdir(self.checkpoint_path)
-            if self.name in filename
-        ]).pop()
-        filename = self.name + "-" + str(step)
-        checkpoint_path = os.path.join(self.checkpoint_path, filename)
-        self.saver.restore(session, checkpoint_path)
-        self.global_step = self.global_step.assign(step)
-        step = session.run(self.global_step)
-        self.logger.info("Loaded model from %s at step %d" % (filename, step)
-                         ) if self.logger else None
-
-    def save(self, session, step):
-        """
-        Persist the model variables values.
-
-        Args:
-            session: the tensorflow session
-            step: the global step as a tensor
-
-        Returns:
-            the path to the saved model
-        """
-        if not os.path.isdir(self.checkpoint_path):
-            os.mkdir(self.checkpoint_path)
-        checkpoint_path = os.path.join(self.checkpoint_path, self.name)
-        return self.saver.save(session, checkpoint_path, global_step=step)
+        variable = tf.get_variable(name, shape=shape, dtype=tf.float32, initializer=initializer)
+        return variable
 
     @staticmethod
-    def load_batch(examples):
+    def compute_loss(prediction, label, loss_name="mse", seq_length=1):
         """
-        Load the batch examples.
+        Compute the loss
 
         Args:
-            examples: the example in the batch
-
+            prediction: the tensor of predictions (bach_size, n_outputs)
+            label: the tensor of labels (batch_size, n_outputs)
+            loss_name: string representing the name of the metric to use as loss
+            seq_length: the sequence length
         Returns:
-            the batch examples
+            scalar value representing loss
         """
-        inputs = []
-        labels = []
-        for example in examples:
-            features, label = example
-            inputs.append(features)
-            labels.append(label)
-
-        return np.stack(inputs), np.stack(labels)
-
-    def sample(self, p):
-        """
-        Sample an output from the probabilities estimates (used in classification).
-
-        Args:
-            p: a tensor of class probabilities (batch x nb classes)
-
-        Returns:
-            the  of the sampled prediction
-        """
-        elems = tf.convert_to_tensor(range(self.n_output))
-        samples = tf.multinomial(tf.log(p), 1)
-        indices = elems[tf.cast(samples, tf.int32)]
-        return tf.one_hot(indices, depth=self.n_output, on_value=1.0, off_value=0.0, axis=-1)
+        if loss_name.lower() == "mse":
+            return SequenceModel.compute_mse(prediction, label, seq_length, name="Loss_"+loss_name)
+        elif loss_name.lower() == "mae":
+            return SequenceModel.compute_mae(prediction, label, seq_length, name="Loss_"+loss_name)
+        elif loss_name.lower() == "mape":
+            return SequenceModel.compute_mape(prediction, label, seq_length, name="Loss_"+loss_name)
+        elif loss_name.lower() == "correlation":
+            return SequenceModel.compute_correlation(prediction, label, seq_length, as_op=True, name="Loss_"+loss_name)
+        else:
+            return SequenceModel.compute_mse(prediction, label,seq_length, name="Loss_default")
 
     @staticmethod
-    def compute_loss(output, label, loss='mse'):
+    def compute_metrics(prediction, label, seq_length=1):
         """
-        Compute the loss operation.
+        Compute the metrics
 
         Args:
-            output: the output of the model class probabilities or prediction
-            label: the tensor of labels
-            loss: the loss name
-
+            prediction: the tensor of predictions (bach_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            label: the tensor of labels (batch_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            seq_length: the sequence length
         Returns:
-            loss: the loss
+            scalar value representing correlation coefficient
         """
-        if loss == 'cross_entropy':
-            loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=output, labels=label
+        mse = SequenceModel.compute_mse(prediction, label, seq_length)
+        mae = SequenceModel.compute_mae(prediction, label, seq_length)
+        mape = SequenceModel.compute_mape(prediction, label, seq_length)
+        corr = SequenceModel.compute_correlation(prediction, label, seq_length, as_op=False)
+        r2 = SequenceModel.compute_r2(prediction, label, seq_length)
+
+        return OrderedDict({
+            "mse": mse,
+            "mae": mae,
+            "mape": mape,
+            "corr": corr,
+            "r2": r2
+        })
+
+    @staticmethod
+    def compute_correlation(prediction, label, seq_length=1, as_op=True, name='Correlation_coefficient'):
+        """
+        Compute the correlation
+
+        Args:
+            prediction: the tensor of predictions (bach_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            label: the tensor of labels (batch_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            seq_length: the sequence length
+            as_op: whether to return operation or variable
+            name: string representing the name of the variable
+        Returns:
+            scalar value representing correlation coefficient
+        """
+        if seq_length == 1:
+            corr, corr_op = tf.contrib.metrics.streaming_pearson_correlation(prediction, label)
+        else:
+            corr, corr_op = tf.reduce_mean(
+                [tf.contrib.metrics.streaming_pearson_correlation(prediction[t], label[:, t, :])[int(~as_op)]
+                 for t in range(seq_length)], axis=0)
+
+        tf.summary.scalar(name, corr_op)
+        return corr_op
+
+    @staticmethod
+    def compute_mse(prediction, label, seq_length=1, name="Mean_squared_error"):
+        """
+        Compute the mean absolute percentage error
+
+        Args:
+            prediction: the tensor of predictions (bach_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            label: the tensor of labels (batch_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            seq_length: the sequence length
+            name: string representing the name of the variable
+        Returns:
+            scalar value representing mse
+        """
+        if seq_length == 1:
+            mse = tf.reduce_mean(tf.square(prediction - label), axis=[0, 1])
+        else:
+            mse = tf.reduce_mean(
+                [tf.reduce_mean(tf.square(prediction[t], label[:, t, :]), axis=[0, 1])
+                 for t in range(seq_length)], axis=0)
+
+        tf.summary.scalar(name, mse)
+        return mse
+
+    @staticmethod
+    def compute_mae(prediction, label, seq_length=1, name="Mean_absolute_error"):
+        """
+        Compute the mean absolute error
+
+        Args:
+            prediction: the tensor of predictions (bach_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            label: the tensor of labels (batch_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            seq_length: the sequence length
+            name: string representing the name of the variable
+        Returns:
+            scalar value representing mse
+        """
+        if seq_length == 1:
+            mae = tf.reduce_mean(tf.abs(prediction - label), axis=[0, 1])
+        else:
+            mae = tf.reduce_mean(
+                [tf.reduce_mean(tf.abs(prediction[t], label[:, t, :]), axis=[0, 1])
+                 for t in range(seq_length)], axis=0)
+
+        tf.summary.scalar(name, mae)
+        return mae
+
+    @staticmethod
+    def compute_r2(prediction, label, seq_length=1, name="R2"):
+        """
+        Compute the squared determination coefficient
+        Args:
+            prediction:  the tensor of predictions (bach_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            label: the tensor of labels (batch_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            seq_length: the sequence length
+            name: string representing the name of the variable
+        Returns:
+            scalar value representing r2
+        """
+        if seq_length == 1:
+            r2 = tf.reduce_mean(tf.divide(
+                tf.reduce_sum(tf.square(prediction - tf.reduce_mean(label, axis=0)), axis=0),
+                tf.reduce_sum(tf.square(label - tf.reduce_mean(label, axis=0)), axis=0)
             ))
-        elif loss == 'mse':
-            loss = tf.reduce_mean(tf.square(output - label))
         else:
-            loss = tf.reduce_mean(tf.square(output - label))
+            r2 = tf.reduce_mean(
 
-        tf.summary.scalar('Loss', loss)
-        return loss
+                [tf.reduce_mean(tf.divide(
+                    tf.reduce_sum(tf.square(prediction[t] - tf.reduce_mean(label[:, t, :], axis=0)), axis=0),
+                    tf.reduce_sum(tf.square(label[:, t, :] - tf.reduce_mean(label[:, t, :], axis=0)), axis=0)
+                )) for t in range(seq_length)], axis=0)
 
-    def compute_accuracy(self, logit, label):
+        tf.summary.scalar(name, r2)
+        return r2
+
+    @staticmethod
+    def compute_mape(prediction, label, seq_length=1, name="Mean_absolute_percentage_error"):
         """
-        Compute the accuracy measure.
+        Compute the mean absolute percentage error
 
         Args:
-            logit: the tensor of class probabilities (bach_size, n_classes)
-            label: the tensor of labels (batch_size, n_classes)
-
+            prediction:  the tensor of predictions (bach_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            label: the tensor of labels (batch_size, n_outputs) or (batch_size, seq_length, n_outputs)
+            seq_length: the sequence length
+            name: string representing the name of the variable
         Returns:
-            accuracy: the accuracy metric measure
-
+            scalar value representing mape
         """
-        pred = tf.argmax(logit, axis=-1)
-        y = tf.argmax(label, axis=-1)
+        if seq_length == 1:
+            mape = tf.reduce_mean(
+                tf.multiply(
+                    tf.divide(tf.abs(prediction - label), tf.abs(label)),
+                    tf.constant(100.0)
+                ),
+                axis=[0, 1]
+            )
+        else:
+            mape = tf.reduce_mean(
+                [tf.reduce_mean(
+                    tf.multiply(
+                        tf.divide(tf.abs(prediction[t] - label[:, t, :]), tf.abs(label[:, t, :])),
+                        tf.constant(100.0)
+                    ),
+                    axis=[0, 1]
+                )
+                 for t in range(seq_length)], axis=0)
 
-        pred = tf.Print(pred, [pred], message="Prediction: ",
-                        summarize=2) if self.debug else pred
-        y = tf.Print(y, [y], message="Label: ",
-                     summarize=2) if self.debug else y
-
-        accuracy = tf.reduce_mean(tf.cast(tf.equal(y, pred), "float"))
-        tf.summary.scalar('Accuracy', accuracy)
-
-        return accuracy
+        tf.summary.scalar(name, mape)
+        return mape
 
     def compute_gradient(self, loss, global_step, max_value=1.):
         """
         Compute gradient and update parameters.
-
         Args:
             loss: the loss to minimize
             global_step: the training step
@@ -204,15 +281,136 @@ class SequenceModel:
         ]
         return self.optimizer.apply_gradients(capped_gvs, global_step=global_step)
 
-    def fit(self, train_set, validation_set):
-        """
-        Fit model using training set.
-
-        Args:
-            train_set: the data set used for training
-            validation_set: the data set used for evaluation
-        """
+    def fit(self, training_set, validation_set):
         pass
 
-    def predict(self):
+    @staticmethod
+    def load_batch(examples):
+        """
+        Load the batch examples.
+
+        Args:
+            examples: the example in the batch
+        Returns:
+            the batch examples
+        """
+        inputs = []
+        labels = []
+        for example in examples:
+            input, label = example
+            input = input.reshape(1, -1) if len(input.shape) == 1 else input
+            inputs.append(input)
+            labels.append(label)
+
+        return np.stack(inputs), np.stack(labels)
+
+    def load_example(self, example):
+        pass
+
+    @staticmethod
+    def variable_summaries(var, name):
+        """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+        with tf.name_scope(name):
+            mean = tf.reduce_mean(var)
+            tf.summary.scalar('mean', mean)
+            with tf.name_scope('stddev'):
+                stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+            tf.summary.scalar('stddev', stddev)
+            tf.summary.scalar('max', tf.reduce_max(var))
+            tf.summary.scalar('min', tf.reduce_min(var))
+            tf.summary.histogram('histogram', var)
+
+    @staticmethod
+    def get_optimizer(name="adam", learning_rate=0.1):
+        """
+        Get the optimizer object corresponding. If unknown optimizer, raise an exception.
+        Args:
+            name: name of the optimizer
+            learning_rate: the learning rate
+        Returns:
+            a tensorflow optimizer object
+        """
+        if name == "adam":
+            return tf.train.AdamOptimizer(learning_rate=learning_rate)
+        elif name == "adadelta":
+            return tf.train.AdadeltaOptimizer(learning_rate=learning_rate)
+        elif name == "gradientdescent":
+            return tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+        elif name == "rmsprop":
+            return tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+        else:
+            raise Exception("The optimizer is unknown")
+
+    @staticmethod
+    def get_activation(name="identity"):
+        """
+        Get the activation function.
+
+        Args:
+            name: name of the activation function as string
+
+        Returns:
+            tensorflow operation
+
+        """
+        if name == "identity":
+            return tf.identity
+        elif name == "relu":
+            return tf.nn.relu
+        elif name == "softmax":
+            return tf.nn.softmax
+        else:
+            return tf.identity
+
+    def get_writer(self):
+        """
+        Get the training and validation summaries writers.
+        Returns:
+            Tensorflow FileWriter object
+        """
+        training_path = os.path.join(
+            self.summary_path, "train", str(datetime.now()).replace(' ', '_').replace(':', '-').replace('.', '_')
+        )
+        validation_path = os.path.join(
+            self.summary_path, "val", str(datetime.now()).replace(' ', '_').replace(':', '-').replace('.', '_')
+        )
+        return tf.summary.FileWriter(training_path), tf.summary.FileWriter(validation_path)
+
+    def load(self, session):
+        """
+        Load the model variables values.
+        Args:
+            session: the tensorflow session
+        Returns:
+            Nothing
+        """
+        step = sorted([
+            int(filename.split(self.name)[1].split("-")[1].split(".")[0])
+            for filename in os.listdir(self.checkpoint_path)
+            if self.name in filename
+        ]).pop()
+        filename = self.name + "-" + str(step)
+        checkpoint_path = os.path.join(self.checkpoint_path, filename)
+        self.saver.restore(session, checkpoint_path)
+        step = session.run(self.global_step)
+        self.logger.info("Loaded model from %s at step %d" % (filename, step)) if self.logger else None
+
+    def save(self, session, step):
+        """
+        Persist the model variables values.
+        Args:
+            session: the tensorflow session
+            step: the global step as a tensor
+        Returns:
+            the path to the saved model
+        """
+        if not os.path.isdir(self.checkpoint_path):
+            os.mkdir(self.checkpoint_path)
+        checkpoint_path = os.path.join(self.checkpoint_path, self.name)
+        return self.saver.save(session, checkpoint_path, global_step=step)
+
+    def validation_eval(self, session, summaries, dataset, loss, step):
+        pass
+
+    def predict(self, dataset):
         pass

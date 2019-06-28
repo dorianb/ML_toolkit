@@ -6,39 +6,43 @@ from sequence_model.classRNNCell import RNNCell
 
 class RNNCellTestCase(unittest.TestCase):
 
-    def test_init(self):
-        """
-        Test the initialization method of RNN Cell.
-        """
-        rnn_cell_1 = RNNCell(n_unit=100, f_out=tf.nn.softmax, n_output=2,
-                             with_prev_output=False, return_output=False)
-        self.assertEqual(rnn_cell_1.n_unit, 100)
-
     def test_build(self):
         """
-        Test the build method of RNN Cell.
+        Test the build method
 
         """
+        units = 100
         batch_size = 2
-        n_features = 10
-        n_unit = 100
-        n_output = 2
-        input_t = tf.placeholder(tf.float32, shape=(batch_size, n_features))
-        prev_state = tf.placeholder(tf.float32, shape=(batch_size, n_unit))
-        prev_output = tf.placeholder(tf.float32, shape=(batch_size, n_output))
+        p = 10
+        n_output = 4
 
-        rnn_cell_1 = RNNCell(n_unit=n_unit, f_out=tf.nn.softmax, n_output=n_output,
-                             with_prev_output=False, return_output=False)
-        state = rnn_cell_1.build(input_t, prev_state, name="rnn_cell_1")
+        input = tf.placeholder(shape=(batch_size, p), dtype=tf.float32)
+        state = tf.get_variable(shape=(batch_size, units), initializer=tf.random_uniform_initializer(),
+                                dtype=tf.float32,
+                                name="initial_state")
+        prev_output = tf.get_variable(shape=(batch_size, n_output), initializer=tf.random_uniform_initializer(),
+                                      dtype=tf.float32, name="prev_output")
 
-        self.assertTupleEqual(tuple(state.get_shape().as_list()), (batch_size, n_unit))
+        rnn_cell_1 = RNNCell(units=units, f_out=tf.nn.softmax, return_output=True, with_prev_output=False, n_output=n_output)
 
-        rnn_cell_1 = RNNCell(n_unit=n_unit, f_out=tf.nn.softmax, n_output=n_output,
-                             with_prev_output=True, return_output=True)
-        state, output = rnn_cell_1.build(input_t, prev_state, prev_output, name="rnn_cell_2")
+        output, state = rnn_cell_1.build(input, state, name="rnn_cell_1")
 
-        self.assertTupleEqual(tuple(state.get_shape().as_list()), (batch_size, n_unit))
         self.assertTupleEqual(tuple(output.get_shape().as_list()), (batch_size, n_output))
+        self.assertTupleEqual(tuple(state.get_shape().as_list()), (batch_size, units))
+
+        rnn_cell_2 = RNNCell(units=units, f_out=tf.nn.softmax, return_output=False, with_prev_output=False, n_output=n_output)
+
+        state = rnn_cell_2.build(input, state, name="rnn_cell_2")
+
+        self.assertTupleEqual(tuple(state.get_shape().as_list()), (batch_size, units))
+
+        rnn_cell_3 = RNNCell(units=units, f_out=tf.nn.softmax, return_output=True, with_prev_output=True, n_output=n_output)
+
+        output, state = rnn_cell_3.build(input, state, prev_output, name="rnn_cell_3")
+
+        self.assertTupleEqual(tuple(output.get_shape().as_list()), (batch_size, n_output))
+        self.assertTupleEqual(tuple(state.get_shape().as_list()), (batch_size, units))
+
 
 if __name__ == '__main__':
     unittest.main()

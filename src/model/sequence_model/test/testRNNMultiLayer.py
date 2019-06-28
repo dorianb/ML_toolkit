@@ -2,7 +2,7 @@ import unittest
 import os
 import numpy as np
 
-from sequence_model.classRNN import RNN
+from sequence_model.classRNNMultiLayer import RNNMultiLayer
 
 
 ROOT_PATH = os.sep.join(os.path.normpath(os.getcwd()).split(os.path.sep)[:-2])
@@ -26,11 +26,12 @@ class RNNTestCase(unittest.TestCase):
         checkpoint_path = os.path.join(METADATA_PATH, "checkpoints")
 
         name = "rnn_1"
-        rnn_1 = RNN(units_per_cell, batch_size, time_steps, n_features, n_layers=1, is_sequence_output=True,
-                    with_prev_output=False, n_output=n_output, f_out="identity", optimizer_name="rmsprop",
-                    learning_rate=0.1, epochs=1, from_pretrained=False, validation_step=1000,
-                    checkpoint_step=1000, summary_path=os.path.join(summary_path, name),
-                    checkpoint_path=os.path.join(checkpoint_path, name), name=name)
+        rnn_1 = RNNMultiLayer(
+            units_per_cell, batch_size, time_steps, n_features, n_layers=1, is_sequence_output=True,
+            with_prev_output=False, n_output=n_output, f_out="identity", optimizer_name="rmsprop",
+            learning_rate=0.1, epochs=1, from_pretrained=False, validation_step=1000,
+            checkpoint_step=1000, summary_path=os.path.join(summary_path, name),
+            checkpoint_path=os.path.join(checkpoint_path, name), name=name)
 
         outputs = rnn_1.model
         self.assertIsInstance(outputs, list)
@@ -38,11 +39,12 @@ class RNNTestCase(unittest.TestCase):
         self.assertTupleEqual(tuple(outputs[-1].get_shape().as_list()), (None, n_output))
 
         name = "rnn_2"
-        rnn_2 = RNN(units_per_cell, batch_size, time_steps, n_features, n_layers=1, is_sequence_output=False,
-                    with_prev_output=False, n_output=n_output, f_out="identity", optimizer_name="rmsprop",
-                    learning_rate=0.1, epochs=1, from_pretrained=False, validation_step=1000,
-                    checkpoint_step=1000, summary_path=os.path.join(summary_path, name),
-                    checkpoint_path=os.path.join(checkpoint_path, name), name=name)
+        rnn_2 = RNNMultiLayer(
+            units_per_cell, batch_size, time_steps, n_features, n_layers=1, is_sequence_output=False,
+            with_prev_output=False, n_output=n_output, f_out="identity", optimizer_name="rmsprop",
+            learning_rate=0.1, epochs=1, from_pretrained=False, validation_step=1000,
+            checkpoint_step=1000, summary_path=os.path.join(summary_path, name),
+            checkpoint_path=os.path.join(checkpoint_path, name), name=name)
 
         outputs = rnn_2.model
         self.assertIsInstance(outputs, list)
@@ -64,11 +66,12 @@ class RNNTestCase(unittest.TestCase):
         checkpoint_path = os.path.join(METADATA_PATH, "checkpoints")
 
         name = "rnn_1"
-        rnn_1 = RNN(units_per_cell, batch_size, time_steps, n_features, n_layers=1, is_sequence_output=False,
-                    with_prev_output=False, n_output=n_output, f_out="identity",  optimizer_name="rmsprop",
-                    learning_rate=0.1, epochs=1, from_pretrained=False, validation_step=10,
-                    checkpoint_step=10, summary_path=os.path.join(summary_path, name),
-                    checkpoint_path=os.path.join(checkpoint_path, name), name=name, debug=1)
+        rnn_1 = RNNMultiLayer(
+            units_per_cell, batch_size, time_steps, n_features, n_layers=1, is_sequence_output=False,
+            with_prev_output=False, n_output=n_output, f_out="identity",  optimizer_name="rmsprop",
+            learning_rate=0.1, epochs=1, from_pretrained=False, validation_step=10,
+            checkpoint_step=10, summary_path=os.path.join(summary_path, name),
+            checkpoint_path=os.path.join(checkpoint_path, name), name=name, debug=1)
 
         n = 100
         random_sold_set = np.random.randint(low=1, high=100, size=n)

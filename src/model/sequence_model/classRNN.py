@@ -1,7 +1,7 @@
 import tensorflow as tf
-import numpy as np
 from time import time
-import os
+import numpy as np
+import gc
 
 from sequence_model.classSequenceModel import SequenceModel
 from sequence_model.classRNNCell import RNNCell
@@ -9,173 +9,151 @@ from sequence_model.classRNNCell import RNNCell
 
 class RNN(SequenceModel):
 
-    def __init__(self, units, f_out, batch_size=2, time_steps=24, n_features=10, n_output=1,
-                 with_prev_output=False, with_input=True, return_sequences=True,
-                 n_epochs=1, validation_step=10, checkpoint_step=100, from_pretrained=False,
-                 optimizer_name="rmsprop", learning_rate=0.001, loss_name='mse',
-                 summary_path=".", checkpoint_path=".", name="rnn", logger=None, debug=False):
+    def __init__(self, units_per_cell, batch_size, time_steps, n_features, n_layers=1, is_sequence_output=True,
+                 with_prev_output=True, n_output=1, f_out="identity", optimizer_name="rmsprop", learning_rate=0.1,
+                 loss_name="mse", epochs=1, from_pretrained=False, validation_step=1000, checkpoint_step=1000,
+                 summary_path="", checkpoint_path="", name="rnn", debug=0):
         """
-        Initialize an RNN model.
-        Args:
-            units: a 2-dimensional list with units number for each layers' cells
-            f_out: the activation function for the output
-            batch_size: number of examples by batch
-            time_steps: the number of time steps
-            n_features: the number of input features
-            n_output: the dimension of the output tensor
-            with_prev_output: whether to use the previous output for the next cell
-            with_input: whether to use an input at each stage or use the previous instead
-            return_sequences: whether to return an ouput for each time step of sequence
-            n_epochs: the number of epochs
-            validation_step: the number of batch training between each evaluation
-            checkpoint_step: the number of batch training between each checkpoints
-            from_pretrained: whether to load pre trained model
-            optimizer_name: the name of the optimizer
-            learning_rate: the learning rate used by the optimizer
-            loss_name: the name of the loss to minimize
-            summary_path: the path of the summary
-            checkpoint_path: the path to the model checkpoint
-            logger: the logging instance to trace
-            name: the scope name
-            debug: debug mode
-        """
-        SequenceModel.__init__(self)
+        Initialization of RNN model
 
-        self.units = np.array(units)
-        self.f_out = f_out
+        Args:
+            units_per_cell: the number of units per RNN Cell
+            batch_size: the size of batch
+            time_steps: the length of sequence
+            n_features: the number of features in the sequence
+            n_layers: the number of layers stacked
+            is_sequence_output: whether the model outputs a sequence
+            with_prev_output: whether the model uses the previous cell output
+            n_output: the output dimension
+            f_out: the activation function used as output of cell
+            optimizer_name: the optimizer name used
+            learning_rate: the learning rate
+            loss_name: the name of the metric to use for optimization
+            epochs: the number of epochs for training
+            from_pretrained: whether to use the pre trained model
+            validation_step: model evaluation frequency
+            checkpoint_step: model checkpoint frequency
+            summary_path: the path to the summary folder
+            checkpoint_path: the path to the checkpoint path
+            name: the name of the variable scope
+            debug: whether debug mode is activate
+        """
+        tf.reset_default_graph()
+
+        SequenceModel.__init__(self, name, debug)
+
+        self.units_per_cell = units_per_cell
+        self.n_layers = n_layers
+        self.n_cells = time_steps  # the number of RNN cells is equivalent to the length of the sequence
         self.batch_size = batch_size
         self.time_steps = time_steps
         self.n_features = n_features
+        self.is_sequence_output = is_sequence_output
+        self.with_prev_output = with_prev_output
         self.n_output = n_output
-        self.with_prev_output= with_prev_output
-        self.with_input = with_input
-        self.return_sequences = return_sequences
-        self.n_epochs = n_epochs
+        self.loss_name = loss_name
+        self.epochs = epochs
+        self.from_pretrained = from_pretrained
         self.validation_step = validation_step
         self.checkpoint_step = checkpoint_step
-        self.from_pretrained = from_pretrained
-        self.optimizer_name = optimizer_name
-        self.learning_rate = learning_rate
-        self.loss_name = loss_name
-        self.summary_path = os.path.join(summary_path, name)
-        self.checkpoint_path = os.path.join(checkpoint_path, name)
-        self.name = name
-        self.logger = logger
-        self.debug = debug
+        self.summary_path = summary_path
+        self.checkpoint_path = checkpoint_path
 
-        # Input
-        self.input = tf.placeholder(
-            shape=(None, self.time_steps, self.n_features), dtype=tf.float32)
+        self.input_keep_prob = 1
+        self.state_keep_prob = 1
+        self.output_keep_prob = 1
+        self.seed = 42
 
-        # Label
-        self.label = tf.placeholder(shape=(
-            None, self.time_steps, self.n_output
-        ) if self.return_sequences else (None, self.n_output), dtype=tf.float32)
+        self.input = tf.placeholder(tf.float32, [None, self.time_steps, self.n_features])
+        self.initial_state = tf.placeholder(tf.float32, [None, self.units_per_cell])
 
-        self.initial_states = None
-        self.initial_outputs = None
+        if self.is_sequence_output:
+            self.label = tf.placeholder(tf.float32, [None, self.time_steps, self.n_output])
+
+        else:
+            self.label = tf.placeholder(tf.float32, [None, self.n_output])
 
         # Global step
         self.global_step = tf.Variable(0, dtype=tf.int32, name="global_step")
-        self.global_step = tf.add(self.global_step, tf.constant(1))
 
         # Optimizer
-        self.optimizer = SequenceModel.get_optimizer(self.optimizer_name, self.learning_rate)
+        self.optimizer = self.get_optimizer(optimizer_name, learning_rate)
+
+        # Output activation
+        self.f_out = self.get_activation(f_out)
 
         # Summary writers
-        self.train_writer, self.validation_writer = SequenceModel.get_writer(self)
+        self.train_writer, self.validation_writer = self.get_writer()
 
         # Model saver
         self.saver = tf.train.Saver()
 
-    def build_model(self, input_seq):
+        # Build model
+        self.model = self.build_model(name)
+
+    def build_model(self, name="rnn"):
         """
-        Build RNN graph.
+        Build the model
 
         Args:
-            input_seq: the input sequence tensor (batch, time step, features)
+            name: the name of the variable scope
 
         Returns:
-            the model output
+            the output tensor as a sequence or not
         """
-        with tf.variable_scope(name_or_scope=self.name):
+        outputs = []
+        with tf.variable_scope(name):
 
-            n_layers, n_cells = self.units.shape
-            prev_layers_outputs = []
+            output = None
+            state_t = self.initial_state
+            # state_t = tf.nn.dropout(state_t, keep_prob=self.state_keep_prob)  # A ajouter lorsque l'état initial est une variable
 
-            self.initial_states = [tf.placeholder(
-                name="initial_state_" + str(l), shape=(None, self.units[l][0]), dtype=tf.float32
-            ) for l in range(n_layers)]
+            for i in range(self.n_cells):
 
-            self.initial_outputs = tf.placeholder(
-                name="initial_outputs", shape=(n_layers, None, self.n_output), dtype=tf.float32
-            ) if self.with_prev_output else None
+                input_t = self.input[:, i, :]
 
-            for l, layer_units in enumerate(self.units):
+                if i < self.n_cells - 1 and not self.is_sequence_output:
+                    rnn_cell = RNNCell(units=self.units_per_cell, f_out=self.f_out, return_output=False,
+                                       with_prev_output=False, input_keep_prob=self.input_keep_prob,
+                                       state_keep_prob=self.state_keep_prob, output_keep_prob=self.output_keep_prob,
+                                       seed=self.seed + i)
+                    state_t = rnn_cell.build(input_t, state_t, name="rnn_cell_" + str(i))
 
-                with_prev_output = self.with_prev_output if l == 0 and self.with_input else False
-                layer_outputs = []
+                else:
+                    rnn_cell = RNNCell(units=self.units_per_cell, f_out=self.f_out, return_output=True,
+                                       with_prev_output=self.with_prev_output, input_keep_prob=self.input_keep_prob,
+                                       state_keep_prob=self.state_keep_prob, output_keep_prob=self.output_keep_prob,
+                                       n_output=self.n_output, seed=self.seed + i)
+                    if self.with_prev_output:
+                        output, state_t = rnn_cell.build(input_t, state_t, output, name="rnn_cell_" + str(i))
+                    else:
+                        output, state_t = rnn_cell.build(input_t, state_t, name="rnn_cell_" + str(i))
 
-                with tf.variable_scope(name_or_scope="layer_" + str(l)):
+                    outputs.append(output)
 
-                    for t, cell_unit in enumerate(layer_units):
+            return outputs
 
-                        if t == 0:
-                            prev_state = self.initial_states[l]
-                            prev_output = None
-
-                        if t == 0 and with_prev_output:
-                            prev_output = self.initial_outputs[l]
-
-                        if self.f_out == tf.nn.softmax:
-                            prev_output = SequenceModel.sample(prev_output)
-                            prev_output = tf.Print(prev_output, [prev_output])
-
-                        input_t = input_seq[:, t, :] if self.with_input or t == 0 else prev_output
-                        input_t = prev_layers_outputs[l-1][t] if l > 0 and self.with_input else input_t
-
-                        return_output = (
-                            self.return_sequences
-                            or (not self.return_sequences and l < n_layers - 1)
-                            or not self.with_input
-                            or (not self.return_sequences and l == n_layers - 1 and t == n_cells - 1)
-                        )
-
-                        rnn_cell = RNNCell(cell_unit, self.f_out, n_output=self.n_output, with_prev_output=with_prev_output,
-                                           return_output=return_output)
-
-                        if return_output:
-                            prev_state, prev_output = rnn_cell.build(input_t, prev_state, prev_output=prev_output, name="cell_" + str(t))
-                            layer_outputs.append(prev_output)
-                        else:
-                            prev_state = rnn_cell.build(input_t, prev_state, prev_output=prev_output, name="cell_" + str(t))
-
-                    prev_layers_outputs.append(layer_outputs)
-
-        return tf.reshape(
-            tf.concat(layer_outputs, axis=1),
-            [-1, n_cells, self.n_output]
-        ) if self.return_sequences else prev_output
-
-    def fit(self, train_set, validation_set, initial_states, initial_outputs=None):
+    def fit(self, training_set, validation_set):
         """
-        Fit model using training set.
+        Fit the model
 
         Args:
-            train_set: the data set used for training
-            validation_set: the data set used for evaluation
-            initial_states: the initial states of the graph model
-            initial_outputs: the initial outputs of the graph model
+            training_set:
+            validation_set:
+
+        Returns:
 
         """
-        # Build the graph model
-        output = self.build_model(self.input)
+        outputs = self.model
 
-        # Loss
-        loss = SequenceModel.compute_loss(output, self.label, loss=self.loss_name)
+        outputs[-1] = tf.Print(outputs[-1], [self.label], summarize=self.batch_size * self.n_output, message="Label: ")
+        outputs[-1] = tf.Print(outputs[-1], [outputs[-1]], summarize=self.batch_size * self.n_output,
+                               message="Prediction: ")
 
-        # Optimization
-        train_op = self.compute_gradient(loss, self.global_step)
+        metrics = SequenceModel.compute_metrics(outputs[-1], self.label, self.time_steps if self.is_sequence_output else 1)
+        loss = SequenceModel.compute_loss(outputs[-1], self.label, self.loss_name, self.time_steps if self.is_sequence_output else 1)
+
+        train_op = SequenceModel.compute_gradient(self, loss, self.global_step)
 
         # Merge summaries
         summaries = tf.summary.merge_all()
@@ -184,7 +162,11 @@ class RNN(SequenceModel):
         init_g = tf.global_variables_initializer()
         init_l = tf.local_variables_initializer()
 
+        self.global_step = tf.add(self.global_step, tf.constant(1))
+
         with tf.Session() as sess:
+
+            run_opts = tf.RunOptions(report_tensor_allocations_upon_oom=True)
 
             sess.run(init_g)
             sess.run(init_l)
@@ -194,32 +176,22 @@ class RNN(SequenceModel):
             # Load existing model
             SequenceModel.load(self, sess) if self.from_pretrained else None
 
-            for epoch in range(self.n_epochs):
+            for epoch in range(self.epochs):
 
-                for i in range(self.batch_size, len(train_set), self.batch_size):
+                for i in range(self.batch_size, len(training_set), self.batch_size):
 
                     time0 = time()
-                    batch_examples = train_set[i - self.batch_size: i]
-
-                    feature_batch, label_batch = SequenceModel.load_batch(batch_examples)
-
-                    feed_dict = {
-                        self.input: feature_batch,
-                        self.label: label_batch
-                    }
-                    feed_dict.update({
-                        i: np.repeat(d, self.batch_size, axis=0)
-                        for i, d in zip(self.initial_states, initial_states)
-                    })
-                    feed_dict.update({
-                        self.initial_outputs: np.repeat(
-                            initial_outputs, self.batch_size, axis=0
-                            ).reshape(initial_outputs.shape[0], self.batch_size, initial_outputs.shape[1])
-                    }) if self.with_prev_output and initial_outputs is not None else None
+                    batch_input, batch_label = self.load_batch(training_set[i - self.batch_size: i])
+                    initial_state = np.zeros(shape=(self.batch_size, self.units_per_cell), dtype=np.float32)
 
                     _, loss_value, summaries_value, step = sess.run([
                         train_op, loss, summaries, self.global_step],
-                        feed_dict=feed_dict
+                        feed_dict={
+                            self.input: batch_input,
+                            self.label: batch_label,
+                            self.initial_state: initial_state
+                        },
+                        options=run_opts,
                     )
 
                     self.train_writer.add_summary(summaries_value, step)
@@ -230,12 +202,15 @@ class RNN(SequenceModel):
                             loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
 
                     if i % self.validation_step == 0:
-                        self.validation_eval(sess, summaries, validation_set, initial_states, initial_outputs, loss, step)
+                        SequenceModel.memory()
+                        self.validation_eval(sess, summaries, validation_set, metrics, step)
+                        gc.collect()
+                        SequenceModel.memory()
 
                     if i % self.checkpoint_step == 0:
                         SequenceModel.save(self, sess, step=self.global_step)
 
-    def validation_eval(self, session, summaries, dataset, initial_states, initial_outputs, loss, step):
+    def validation_eval(self, session, summaries, dataset, metrics, step):
         """
         Produce evaluation on the validation dataset.
 
@@ -243,42 +218,41 @@ class RNN(SequenceModel):
             session: the session object opened
             summaries: the summaries declared in the graph
             dataset: the dataset to use for validation
-            initial_states: the initial states of the graph model
-            initial_outputs: the initial outputs of the graph model
-            loss: the tensorflow operation used to compute the loss
+            metrics: dictionary of tensorflow operation to cumpute the metrics
             step: the step of summarize writing
-
         Returns:
             Nothing
         """
+        run_opts = tf.RunOptions(report_tensor_allocations_upon_oom=True)
+
         time0 = time()
-        inputs, labels = SequenceModel.load_batch(dataset)
+        inputs, labels = self.load_batch(dataset)
+        initial_state = np.zeros(shape=(len(dataset), self.units_per_cell), dtype=np.float32)
 
-        feed_dict = {
-            self.input: inputs,
-            self.label: labels
-        }
-        feed_dict.update({
-            i: np.repeat(d, len(dataset), axis=0)
-            for i, d in zip(self.initial_states, initial_states)
-        })
-        feed_dict.update({
-            self.initial_outputs: np.repeat(
-                initial_outputs, len(dataset), axis=0
-            ).reshape(
-                initial_outputs.shape[0], len(dataset), initial_outputs.shape[1]
-            )
-        }) if self.with_prev_output and initial_outputs is not None else None
-
-        loss_value, summaries_value = session.run([loss, summaries], feed_dict=feed_dict)
-
-        self.validation_writer.add_summary(summaries_value, step)
-
+        values = session.run(
+            list(metrics.values()) + [summaries],
+            feed_dict={
+                self.input: inputs,
+                self.label: labels,
+                self.initial_state: initial_state
+            },
+            options=run_opts
+        )
         time1 = time()
 
-        self.logger.info(
-            "Cost = {0} for evaluation set of size {1} in {2:.2f} seconds".format(
-                loss_value, len(dataset), time1 - time0)) if self.logger else None
+        self.logger.info("{0} for evaluation os size {1} in {2:.2f} seconds".format(
+            "; ".join([k + " = " + str(values[i]) for i, k in enumerate(metrics.keys())]),
+            inputs.shape[0], time1 - time0)) if self.logger else None
+
+        self.validation_writer.add_summary(values[-1], step)
 
     def predict(self, dataset):
+        """
+        Predict the output from input.
+
+        Args:
+            dataset: the input dataset
+        Returns:
+            predictions array
+        """
         pass
