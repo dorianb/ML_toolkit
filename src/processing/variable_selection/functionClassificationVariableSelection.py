@@ -55,7 +55,7 @@ def information_value(X, y):
     for k in K:
         dist_good = (y[X == k] == classes[1]).sum() / (y == classes[1]).sum()
         dist_bad = (y[X == k] == classes[0]).sum() / (y == classes[0]).sum()
-        iv.append((dist_good - dist_bad) / np.log(dist_good / dist_bad))
+        iv.append((dist_bad - dist_good) * np.log(dist_bad / dist_good))
     return sum(iv)
 
 
