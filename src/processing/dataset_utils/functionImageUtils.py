@@ -34,7 +34,7 @@ def read_image(image_queue, grayscale=True, rgb=False, binarize=False, normalize
         n_multiple_dim: image will be resized to the nearest multiple
 
     Returns:
-        an array
+        a tensorflow operation representing a processed image
     """
     image_reader = tf.WholeFileReader()
 
@@ -48,19 +48,21 @@ def read_image(image_queue, grayscale=True, rgb=False, binarize=False, normalize
     if n_multiple_dim:
         resize_dim = (
             tf.cond(
-                tf.mod(image.shape[0], tf.constant(n_multiple_dim)) != 0,
-                lambda: tf.round(image.shape[0] / n_multiple_dim),
-                lambda: image.shape[0]
+                tf.mod(tf.shape(image)[0], tf.constant(n_multiple_dim)) > tf.constant(0),
+                lambda: tf.round(tf.shape(image)[0] / n_multiple_dim),
+                lambda: tf.shape(image)[0]
             ),
             tf.cond(
-                tf.mod(image.shape[1], tf.constant(n_multiple_dim)) != 0,
-                lambda: tf.round(image.shape[1] / n_multiple_dim),
-                lambda: image.shape[1]
+                tf.mod(tf.shape(image)[1], tf.constant(n_multiple_dim)) > tf.constant(0),
+                lambda: tf.round(tf.shape(image)[1] / n_multiple_dim),
+                lambda: tf.shape(image)[1]
             )
         )
         image = tf.cond(
-            tf.mod(image.shape[0], tf.constant(n_multiple_dim)) != 0
-            or tf.mod(image.shape[1], tf.constant(n_multiple_dim)) != 0,
+            tf.math.logical_or(
+                tf.mod(tf.shape(image)[0], tf.constant(n_multiple_dim)) > tf.constant(0),
+                tf.mod(tf.shape(image)[1], tf.constant(n_multiple_dim)) > tf.constant(0)
+            ),
             lambda: tf.image.resize_bicubic(image, resize_dim),
             lambda: image
         )

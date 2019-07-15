@@ -31,7 +31,7 @@ class ImageClassificationDataset(Dataset):
         Returns:
             the labels
         """
-        return {i + 1: label
+        return {i: label
                 for i, label in enumerate(sorted(os.listdir(self.dataset_path)))}
 
     def get_examples(self, absolute_path):

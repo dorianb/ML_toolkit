@@ -40,7 +40,6 @@ try:
         args.dataset_path, train_size=args.train_size,
         val_size=args.validation_size, test_size=args.test_size)
     classes = cd_1.labels
-    classes.update({0: 'ambiguous'})
 
     vgg_1 = Vgg(classes, batch_size=args.batch_size, height=224, width=224,
                 dim_out=len(classes), grayscale=True, binarize=False, normalize=False,

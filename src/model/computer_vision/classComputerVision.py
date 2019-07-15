@@ -128,7 +128,7 @@ class ComputerVision:
         filename = self.name + "-" + str(step)
         checkpoint_path = os.path.join(self.checkpoint_path, filename)
         self.saver.restore(session, checkpoint_path)
-        self.global_step = self.global_step.assign(step)
+        self.global_step = tf.assign(self.global_step, step)
         step = session.run(self.global_step)
         self.logger.info("Loaded model from %s at step %d" % (filename, step)
                          ) if self.logger else None
