@@ -93,7 +93,6 @@ class Vgg(ComputerVision):
 
         # Global step
         self.global_step = tf.Variable(0, dtype=tf.int32, name="global_step")
-        #self.global_step = tf.add(self.global_step, tf.constant(1))
 
         # Optimizer
         self.optimizer = ComputerVision.get_optimizer(self.optimizer_name, self.learning_rate)
@@ -104,12 +103,13 @@ class Vgg(ComputerVision):
         # Model saver
         self.saver = tf.train.Saver()
 
-    def build_model(self, dim_output=1000, fc_padding='VALID', name=None):
+    def build_model(self, dim_output=1000, is_training=True, fc_padding='SAME', name=None):
         """
         Build the vgg graph model.
 
         Args:
             dim_output: the dimension output of the network
+            is_training: whether to use training layers
             fc_padding: the padding used for the fully connected layers
             name: the name of the graph operations
 
@@ -121,36 +121,39 @@ class Vgg(ComputerVision):
             # Collect outputs for conv2d, fully_connected and max_pool2d.
             with slim.arg_scope([slim.conv2d, slim.fully_connected, slim.max_pool2d],
                                 outputs_collections=end_points_collection):
-                net = slim.repeat(self.input, 2, slim.conv2d, 64, [3, 3], scope='conv1')
-                net = slim.max_pool2d(net, [2, 2], scope='pool1')
-                net = slim.repeat(net, 2, slim.conv2d, 128, [3, 3], scope='conv2')
-                net = slim.max_pool2d(net, [2, 2], scope='pool2')
-                net = slim.repeat(net, 3, slim.conv2d, 256, [3, 3], scope='conv3')
-                net = slim.max_pool2d(net, [2, 2], scope='pool3')
-                net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
-                net = slim.max_pool2d(net, [2, 2], scope='pool4')
-                net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
-                net = slim.max_pool2d(net, [2, 2], scope='pool5')
+                with slim.arg_scope([slim.conv2d, slim.fully_connected],
+                                    activation_fn=tf.nn.relu,
+                                    padding="SAME",
+                                    weights_initializer=tf.contrib.layers.xavier_initializer(),
+                                    biases_initializer=tf.zeros_initializer()):
+                    net = slim.repeat(self.input, 2, slim.conv2d, 64, [3, 3], scope='conv1')
+                    net = slim.max_pool2d(net, [2, 2], scope='pool1')
+                    net = slim.repeat(net, 2, slim.conv2d, 128, [3, 3], scope='conv2')
+                    net = slim.max_pool2d(net, [2, 2], scope='pool2')
+                    net = slim.repeat(net, 3, slim.conv2d, 256, [3, 3], scope='conv3')
+                    net = slim.max_pool2d(net, [2, 2], scope='pool3')
+                    net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
+                    net = slim.max_pool2d(net, [2, 2], scope='pool4')
+                    net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
+                    net = slim.max_pool2d(net, [2, 2], scope='pool5')
 
-                # Use conv2d instead of fully_connected layers.
-                net = slim.conv2d(net, 4096, [7, 7], padding=fc_padding, scope='fc6')
-                net = slim.dropout(net, 0.5, is_training=True,
-                                   scope='dropout6')
-                net = slim.conv2d(net, 4096, [1, 1], scope='fc7')
-                # Convert end_points_collection into a end_point dict.
-                end_points = slim.utils.convert_collection_to_dict(end_points_collection)
+                    # Use conv2d instead of fully_connected layers.
+                    net = slim.conv2d(net, 4096, [7, 7], padding=fc_padding, scope='fc6')
+                    net = slim.dropout(net, 0.5, is_training=is_training, scope='dropout6')
+                    net = slim.conv2d(net, 4096, [1, 1], padding=fc_padding, scope='fc7')
 
-                if self.n_classes:
-                    net = slim.dropout(net, 0.5, is_training=True,
-                                       scope='dropout7')
-                    net = slim.conv2d(net, self.n_classes, [1, 1],
-                                      activation_fn=None,
-                                      normalizer_fn=None,
-                                      scope='fc8')
+                    # Convert end_points_collection into a end_point dict.
+                    end_points = slim.utils.convert_collection_to_dict(end_points_collection)
 
-                    net = tf.squeeze(net, [1, 2], name='fc8/squeezed')
-                    end_points[sc.name + '/fc8'] = net
-                return net
+                    if self.n_classes:
+                        net = slim.dropout(net, 0.5, is_training=is_training, scope='dropout7')
+                        net = slim.conv2d(net, self.n_classes, [1, 1],
+                                          padding=fc_padding, activation_fn=None,
+                                          normalizer_fn=None,
+                                          scope='fc8')
+                        net = tf.squeeze(net, [1, 2], name='fc8/squeezed')
+                        end_points[sc.name + '/fc8'] = net
+                    return net
 
     def fit(self, training_set, validation_set):
         """
@@ -200,9 +203,11 @@ class Vgg(ComputerVision):
             # Load existing model
             ComputerVision.load(self, sess) if self.from_pretrained else None
 
+            self.global_step = tf.add(self.global_step, tf.constant(1))
+
             for epoch in range(self.n_epochs):
 
-                for i in range(self.batch_size, len(training_set), self.batch_size):
+                for i in range(self.batch_size, len(training_set)+self.batch_size, self.batch_size):
 
                     time0 = time()
                     batch_examples = training_set[i - self.batch_size: i]
@@ -222,8 +227,8 @@ class Vgg(ComputerVision):
 
                     time1 = time()
                     self.logger.info(
-                        "Accuracy = {0}, Cost = {1} for batch {2} in {3:.2f} seconds".format(
-                            accuracy_value, loss_value, i / self.batch_size, time1 - time0)) if self.logger else None
+                        "Accuracy = {0}, Cost = {1} for batch {2} of epoch {3} in {4:.2f} seconds".format(
+                            accuracy_value, loss_value, i / self.batch_size, epoch, time1 - time0)) if self.logger else None
 
                     if i % self.validation_step == 0:
 
@@ -235,48 +240,63 @@ class Vgg(ComputerVision):
 
                         ComputerVision.save(self, sess, step=self.global_step)
 
-    def load_batch(self, examples):
+    def load_batch(self, examples, with_labels=True):
         """
         Load the batch examples.
 
         Args:
             examples: the example in the batch
-
+            with_labels: whether to return label
         Returns:
             the batch examples
         """
         images = []
         labels = []
         for example in examples:
-            image, label = self.load_example(example)
-            images.append(image)
-            labels.append(label)
+            if with_labels:
+                image, label = self.load_example(example)
+                images.append(image)
+                labels.append(label)
+            else:
+                image = self.load_example(example, with_labels=with_labels)
+                images.append(image)
 
-        return np.stack(images), np.stack(labels)
+        if with_labels:
+            return np.stack(images), np.stack(labels)
+        else:
+            return np.stack(images)
 
-    def load_example(self, example):
+    def load_example(self, example, with_labels=True):
         """
         Load the example.
 
         Args:
             example: an example with image path and label
-
+            with_labels: whether to return label
         Returns:
             the example image array and label
         """
-        image_path, label_id = example
-        self.logger.info("Loading example: {0} with label {1}".format(
-            image_path, label_id)) if self.logger else None
+        if with_labels:
+            image_path, label_id = example
+            self.logger.info("Loading example: {0} with label {1}".format(
+                image_path, label_id)) if self.logger else None
+
+        else:
+            image_path = example
+            self.logger.info("Loading example: {0}".format(
+                image_path)) if self.logger else None
 
         image = load_image(image_path, grayscale=self.grayscale,
                                           binarize=self.binarize,
                                           normalize=self.normalize,
                                           resize_dim=self.resize_dim)
+        if with_labels:
+            label = np.zeros(self.n_classes)
+            label[int(label_id)] = 1
 
-        label = np.zeros(self.n_classes)
-        label[int(label_id)] = 1
-
-        return image, label
+            return image, label
+        else:
+            return image
 
     def validation_eval(self, session, summaries, dataset, step):
         """
@@ -313,4 +333,33 @@ class Vgg(ComputerVision):
         Returns:
             predictions array
         """
-        pass
+
+        # Compute probabilities
+        logit = tf.nn.softmax(self.model)
+
+        # Get predictions
+        pred = tf.argmax(logit, axis=-1)
+
+        with tf.Session() as sess:
+
+            # Load existing model
+            ComputerVision.load(self, sess)
+
+            predictions = []
+
+            for i in range(self.batch_size, len(dataset)+self.batch_size, self.batch_size):
+
+                batch_examples = dataset[i - self.batch_size: i]
+
+                image_batch = self.load_batch(batch_examples, with_labels=False)
+
+                pred_batch = sess.run(
+                    pred,
+                    feed_dict={
+                        self.input: image_batch
+                    }
+                )
+
+                predictions += pred_batch.tolist()
+
+            return predictions

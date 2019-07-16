@@ -16,9 +16,9 @@ class ImageClassificationDatasetTestCase(unittest.TestCase):
         self.assertLess(len(caltech_dataset_1.validation_set), 30609 * 0.2)
         self.assertLess(len(caltech_dataset_1.test_set), 30609 * 0.1)
 
-    def test_get_examples(self):
+    def test_get_training_examples(self):
         caltech_dataset_1 = ImageClassificationDataset(DATASET_PATH)
-        result = caltech_dataset_1.get_examples()
+        result = caltech_dataset_1.get_training_examples(absolute_path=True)
         self.assertGreater(len(result), 30607)
 
     def test_get_labels(self):
