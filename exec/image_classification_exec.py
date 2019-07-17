@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import traceback
+import numpy as np
 
 from computer_vision.classVgg import Vgg
 from dataset_utils.classImageClassificationDataset import ImageClassificationDataset
@@ -15,7 +16,7 @@ parser.add_argument('--batch-size', type=int, help='Batch size', default=1)
 parser.add_argument('--train-size', type=float, help='Training set size', default=0.7)
 parser.add_argument('--validation-size', type=float, help='Validation set size', default=0.2)
 parser.add_argument('--test-size', type=float, help='Test set size', default=0.1)
-parser.add_argument('--train', type=int, help='Training mode', default=1)
+parser.add_argument('--mode', type=str, help='Mode (train, predict, plot)', default=1)
 parser.add_argument('--optimizer', type=str, help='Optimizer', default='adam')
 parser.add_argument('--learning-rate', type=float, help='Learning rate', default=0.01)
 parser.add_argument('--n-epochs', type=int, help='Number of epochs', default=1)
@@ -50,28 +51,39 @@ try:
         train_size=args.train_size, val_size=args.validation_size, test_size=args.test_size)
     classes = cd_1.labels
 
-    if args.train:
+    if args.mode == "train":
 
         vgg_1 = Vgg(classes, batch_size=args.batch_size, height=args.height, width=args.width,
                     dim_out=len(classes), grayscale=True, binarize=False, normalize=False,
                     learning_rate=args.learning_rate, n_epochs=args.n_epochs, validation_step=100,
                     checkpoint_step=100, is_encoder=False, validation_size=300,
                     optimizer=args.optimizer, metadata_path=args.metadata_path,
-                    name=args.name, from_pretrained=args.from_pretrained,
+                    name=args.name, from_pretrained=args.from_pretrained, is_training=True,
                     logger=logger, debug=args.debug)
 
         vgg_1.fit(cd_1.training_set, cd_1.validation_set)
 
-    else:
+    elif args.mode == "predict":
 
         vgg_1 = Vgg(classes, batch_size=args.batch_size, height=args.height, width=args.width,
                     dim_out=len(classes), grayscale=True, binarize=False, normalize=False,
                     metadata_path=args.metadata_path,
-                    name=args.name, from_pretrained=True,
+                    name=args.name, from_pretrained=True, is_training=False,
                     logger=logger, debug=args.debug)
 
         predictions = vgg_1.predict(cd_1.testing_examples)
         cd_1.save_test_pred(predictions, args.prediction_path)
+
+    elif args.mode == "plot":
+
+        vgg_1 = Vgg(classes, batch_size=args.batch_size, height=args.height, width=args.width,
+                    dim_out=len(classes), grayscale=True, binarize=False, normalize=False,
+                    metadata_path=args.metadata_path,
+                    name=args.name, from_pretrained=True, is_training=False,
+                    logger=logger, debug=args.debug)
+
+        image = cd_1.testing_examples[np.random.randint(1)]
+        vgg_1.plot_features_maps(image)
 
 except Exception:
     logger.error(traceback.format_exc())

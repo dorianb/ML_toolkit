@@ -2,6 +2,7 @@ import os
 import tensorflow as tf
 import numpy as np
 from time import time
+from matplotlib import pyplot as plt
 
 from computer_vision.classComputerVision import ComputerVision
 from dataset_utils.functionImageUtils import load_image
@@ -22,7 +23,7 @@ class Vgg(ComputerVision):
                  learning_rate=10, n_epochs=1, validation_step=10,
                  checkpoint_step=100, is_encoder=True, validation_size=10,
                  optimizer="adam", metadata_path="", name="vgg",
-                 from_pretrained=False, logger=None, debug=False):
+                 from_pretrained=False, is_training=True, logger=None, debug=False):
         """
         Initialization of the Vgg model.
 
@@ -47,6 +48,7 @@ class Vgg(ComputerVision):
             metadata_path: the path to the metadata
             name: the name of the object instance
             from_pretrained: whether to start training from pre-trained model
+            is_training: whether the model is used for training or prediction
             logger: an instance object of logging module.
             debug: whether the debug mode is activated or not
 
@@ -89,7 +91,7 @@ class Vgg(ComputerVision):
                               summarize=self.n_classes * self.batch_size) if self.debug else self.label
 
         # Build model
-        self.model = self.build_model(self.dim_out)
+        self.model, self.end_points = self.build_model(self.dim_out, is_training=is_training)
 
         # Global step
         self.global_step = tf.Variable(0, dtype=tf.int32, name="global_step")
@@ -153,7 +155,7 @@ class Vgg(ComputerVision):
                                           scope='fc8')
                         net = tf.squeeze(net, [1, 2], name='fc8/squeezed')
                         end_points[sc.name + '/fc8'] = net
-                    return net
+                    return net, end_points
 
     def fit(self, training_set, validation_set):
         """
@@ -363,3 +365,48 @@ class Vgg(ComputerVision):
                 predictions += pred_batch.tolist()
 
             return predictions
+
+    def plot_features_maps(self, input, max_filters=64):
+        """
+
+        Args:
+            input: the input image path
+            max_filters: the maximum number of filters to plot
+
+        Returns:
+            Nothing
+        """
+
+        ixs = ['conv1', 'conv2', 'conv3', 'conv4', 'conv5']
+        outputs = [self.end_points[i].output for i in ixs]
+
+        with tf.Session() as sess:
+
+            # Load existing model
+            ComputerVision.load(self, sess)
+
+            image = self.load_example(input, with_labels=False)
+
+            feature_maps = sess.run(
+                outputs,
+                feed_dict={
+                    self.input: image.reshape(1, -1)
+                }
+            )
+
+            # plot the output from each block
+            square = int(np.sqrt(max_filters))
+            for fmap in feature_maps:
+                # plot all 64 maps in an 8x8 squares
+                ix = 1
+                for _ in range(square):
+                    for _ in range(square):
+                        # specify subplot and turn of axis
+                        ax = plt.subplot(square, square, ix)
+                        ax.set_xticks([])
+                        ax.set_yticks([])
+                        # plot filter channel in grayscale
+                        plt.imshow(fmap[0, :, :, ix - 1], cmap='gray')
+                        ix += 1
+                # show the figure
+                plt.show()
