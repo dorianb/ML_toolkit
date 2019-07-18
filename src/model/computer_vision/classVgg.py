@@ -376,9 +376,12 @@ class Vgg(ComputerVision):
         Returns:
             Nothing
         """
-
-        ixs = ['conv1', 'conv2', 'conv3', 'conv4', 'conv5']
-        outputs = [self.end_points[i].output for i in ixs]
+        ixs = ['vgg_16/conv1/conv1_2',
+               'vgg_16/conv2/conv2_2',
+               'vgg_16/conv3/conv3_2',
+               'vgg_16/conv4/conv4_2',
+               'vgg_16/conv5/conv5_2']
+        outputs = [self.end_points[i] for i in ixs]
 
         with tf.Session() as sess:
 
@@ -390,7 +393,7 @@ class Vgg(ComputerVision):
             feature_maps = sess.run(
                 outputs,
                 feed_dict={
-                    self.input: image.reshape(1, -1)
+                    self.input: np.stack([image])
                 }
             )
 
