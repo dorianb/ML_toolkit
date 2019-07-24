@@ -44,6 +44,8 @@ class ComputerVision:
             return tf.random_uniform_initializer(minval=0, maxval=0.0001, seed=42)
         elif name == "normal":
             return tf.random_normal_initializer(mean=0.0, stddev=1.0, seed=42)
+        elif name == "xavier":
+            return tf.contrib.layers.xavier_initializer()
         else:
             return tf.zeros_initializer()
 
