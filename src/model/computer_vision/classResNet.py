@@ -103,7 +103,7 @@ class ResNet(ComputerVision):
         self.saver = tf.train.Saver()
 
     def residual_block_2(self, input, n_channels=64, n_filters=64, padding="SAME",
-                         with_stride=[1, 1, 1, 1], scope="conv_x"):
+                         is_training=True, with_stride=[1, 1, 1, 1], scope="conv_x"):
         """
         Build a residual block with two convolution layers.
 
@@ -112,6 +112,7 @@ class ResNet(ComputerVision):
             n_channels: number of input channels as integer
             n_filters: number of filters as integer
             padding: the padding policy used by convolutions
+            is_training: whether to use training layers
             with_stride: the stride to apply for the first convolution as an integer
             scope: the name of scope
 
@@ -119,14 +120,17 @@ class ResNet(ComputerVision):
             tensorflow operation
         """
         with tf.variable_scope(scope, values=[input]):
-            net = tf.nn.relu(tf.nn.conv2d(
-                input,
-                filter=ComputerVision.get_parameter("1", "xavier", [3, 3, n_channels, n_filters]),
-                strides=with_stride, padding=padding))
+            net = tf.nn.conv2d(
+                    input,
+                    filter=ComputerVision.get_parameter("1", "xavier", [3, 3, n_channels, n_filters]),
+                    strides=with_stride, padding=padding)
+            net = tf.layers.batch_normalization(net, training=is_training)
+            net = tf.nn.relu(net)
             net = tf.nn.conv2d(
                 net,
                 filter=ComputerVision.get_parameter("2", "xavier", [3, 3, n_filters, n_filters]),
                 strides=[1, 1, 1, 1], padding=padding)
+            net = tf.layers.batch_normalization(net, training=is_training)
 
             if with_stride == [1, 2, 2, 1]:
                 input = tf.nn.conv2d(
@@ -137,7 +141,7 @@ class ResNet(ComputerVision):
             return tf.nn.relu(tf.add(net, input))
 
     def residual_block_3(self, input, n_channels=256, n_filters=64, padding="SAME",
-                         with_stride=[1, 1, 1, 1], scope="conv_x"):
+                         is_training=True, with_stride=[1, 1, 1, 1], scope="conv_x"):
         """
         Build a residual block with three convolution layers.
 
@@ -146,6 +150,7 @@ class ResNet(ComputerVision):
             n_channels: number of input channels as integer
             n_filters: number of filters as integer
             padding: the padding policy used by convolutions
+            is_training: whether to use training layers
             with_stride: the stride to apply for the first convolution as an integer
             scope: the name of scope
 
@@ -153,18 +158,23 @@ class ResNet(ComputerVision):
             tensorflow operation
         """
         with tf.variable_scope(scope, values=[input]):
-            net = tf.nn.relu(tf.nn.conv2d(
-                input,
-                filter=ComputerVision.get_parameter("1", "xavier", [1, 1, n_channels, n_filters]),
-                strides=with_stride, padding=padding))
-            net = tf.nn.relu(tf.nn.conv2d(
-                net,
-                filter=ComputerVision.get_parameter("2", "xavier", [3, 3, n_filters, n_filters]),
-                strides=[1, 1, 1, 1], padding=padding))
+            net = tf.nn.conv2d(
+                    input,
+                    filter=ComputerVision.get_parameter("1", "xavier", [1, 1, n_channels, n_filters]),
+                    strides=with_stride, padding=padding)
+            net = tf.layers.batch_normalization(net, training=is_training)
+            net = tf.nn.relu(net)
+            net = tf.nn.conv2d(
+                    net,
+                    filter=ComputerVision.get_parameter("2", "xavier", [3, 3, n_filters, n_filters]),
+                    strides=[1, 1, 1, 1], padding=padding)
+            net = tf.layers.batch_normalization(net, training=is_training)
+            net = tf.nn.relu(net)
             net = tf.nn.conv2d(
                 net,
                 filter=ComputerVision.get_parameter("3", "xavier", [1, 1, n_filters, n_channels]),
                 strides=[1, 1, 1, 1], padding=padding)
+            net = tf.layers.batch_normalization(net, training=is_training)
 
             if with_stride == [1, 2, 2, 1]:
                 input = tf.nn.conv2d(
@@ -223,79 +233,262 @@ class ResNet(ComputerVision):
 
             if self.n_layers == 18:
                 # 2 x 64
-                net = self.residual_block_2(net, n_channels=64, n_filters=64, scope="conv_2_1")
-                net = self.residual_block_2(net, n_channels=64, n_filters=64, scope="conv_2_2")
+                net = self.residual_block_2(net, n_channels=64, n_filters=64, is_training=is_training, scope="conv_2_1")
+                net = self.residual_block_2(net, n_channels=64, n_filters=64, is_training=is_training, scope="conv_2_2")
                 # 2 x 128
                 net = self.shortcut(net, dim_in=64, dim_out=128, mode=shortcut_mode)
-                net = self.residual_block_2(net, n_channels=128, n_filters=128, with_stride=[1, 2, 2, 1], scope="conv_3_1")
-                net = self.residual_block_2(net, n_channels=128, n_filters=128, scope="conv_3_2")
+                net = self.residual_block_2(net, n_channels=128, n_filters=128, is_training=is_training, with_stride=[1, 2, 2, 1], scope="conv_3_1")
+                net = self.residual_block_2(net, n_channels=128, n_filters=128, is_training=is_training, scope="conv_3_2")
                 # 2 x 256
                 net = self.shortcut(net, dim_in=128, dim_out=256, mode=shortcut_mode)
-                net = self.residual_block_2(net, n_channels=256, n_filters=256, with_stride=[1, 2, 2, 1], scope="conv_4_1")
-                net = self.residual_block_2(net, n_channels=256, n_filters=256, scope="conv_4_2")
+                net = self.residual_block_2(net, n_channels=256, n_filters=256, is_training=is_training, with_stride=[1, 2, 2, 1], scope="conv_4_1")
+                net = self.residual_block_2(net, n_channels=256, n_filters=256, is_training=is_training, scope="conv_4_2")
                 # 2 x 512
                 net = self.shortcut(net, dim_in=256, dim_out=512, mode=shortcut_mode)
-                net = self.residual_block_2(net, n_channels=512, n_filters=512, with_stride=[1, 2, 2, 1], scope="conv_5_1")
-                net = self.residual_block_2(net, n_channels=512, n_filters=512, scope="conv_5_2")
+                net = self.residual_block_2(net, n_channels=512, n_filters=512, is_training=is_training, with_stride=[1, 2, 2, 1], scope="conv_5_1")
+                net = self.residual_block_2(net, n_channels=512, n_filters=512, is_training=is_training, scope="conv_5_2")
                 n_channels = 512
 
             elif self.n_layers == 34:
                 # 3 x 64
-                net = self.residual_block_2(net, n_channels=64, n_filters=64, scope="conv_2_1")
-                net = self.residual_block_2(net, n_channels=64, n_filters=64, scope="conv_2_2")
-                net = self.residual_block_2(net, n_channels=64, n_filters=64, scope="conv_2_3")
+                net = self.residual_block_2(net, n_channels=64, n_filters=64, is_training=is_training, scope="conv_2_1")
+                net = self.residual_block_2(net, n_channels=64, n_filters=64, is_training=is_training, scope="conv_2_2")
+                net = self.residual_block_2(net, n_channels=64, n_filters=64, is_training=is_training, scope="conv_2_3")
                 # 4 x 128
                 net = self.shortcut(net, dim_in=64, dim_out=128, mode=shortcut_mode)
-                net = self.residual_block_2(net, n_channels=128 ,n_filters=128, with_stride=[1, 2, 2, 1], scope="conv_3")
-                net = self.residual_block_2(net, n_channels=128, n_filters=128, scope="conv_3_1")
-                net = self.residual_block_2(net, n_channels=128, n_filters=128, scope="conv_3_2")
-                net = self.residual_block_2(net, n_channels=128, n_filters=128, scope="conv_3_3")
+                net = self.residual_block_2(net, n_channels=128 ,n_filters=128, is_training=is_training, with_stride=[1, 2, 2, 1], scope="conv_3")
+                net = self.residual_block_2(net, n_channels=128, n_filters=128, is_training=is_training, scope="conv_3_1")
+                net = self.residual_block_2(net, n_channels=128, n_filters=128, is_training=is_training, scope="conv_3_2")
+                net = self.residual_block_2(net, n_channels=128, n_filters=128, is_training=is_training, scope="conv_3_3")
                 # 6 x 256
                 net = self.shortcut(net, dim_in=128, dim_out=256, mode=shortcut_mode)
-                net = self.residual_block_2(net, n_channels=256, n_filters=256, with_stride=[1, 2, 2, 1], scope="conv_4_1")
-                net = self.residual_block_2(net, n_channels=256, n_filters=256, scope="conv_4_2")
-                net = self.residual_block_2(net, n_channels=256, n_filters=256, scope="conv_4_3")
-                net = self.residual_block_2(net, n_channels=256, n_filters=256, scope="conv_4_4")
-                net = self.residual_block_2(net, n_channels=256, n_filters=256, scope="conv_4_5")
-                net = self.residual_block_2(net, n_channels=256, n_filters=256, scope="conv_4_6")
+                net = self.residual_block_2(net, n_channels=256, n_filters=256, is_training=is_training, with_stride=[1, 2, 2, 1], scope="conv_4_1")
+                net = self.residual_block_2(net, n_channels=256, n_filters=256, is_training=is_training, scope="conv_4_2")
+                net = self.residual_block_2(net, n_channels=256, n_filters=256, is_training=is_training, scope="conv_4_3")
+                net = self.residual_block_2(net, n_channels=256, n_filters=256, is_training=is_training, scope="conv_4_4")
+                net = self.residual_block_2(net, n_channels=256, n_filters=256, is_training=is_training, scope="conv_4_5")
+                net = self.residual_block_2(net, n_channels=256, n_filters=256, is_training=is_training, scope="conv_4_6")
                 # 3 x 512
                 net = self.shortcut(net, dim_in=256, dim_out=512, mode=shortcut_mode)
-                net = self.residual_block_2(net, n_channels=512, n_filters=512, with_stride=[1, 2, 2, 1], scope="conv_5_1")
-                net = self.residual_block_2(net, n_channels=512, n_filters=512, scope="conv_5_2")
-                net = self.residual_block_2(net, n_channels=512, n_filters=512, scope="conv_5_3")
+                net = self.residual_block_2(net, n_channels=512, n_filters=512, is_training=is_training, with_stride=[1, 2, 2, 1], scope="conv_5_1")
+                net = self.residual_block_2(net, n_channels=512, n_filters=512, is_training=is_training, scope="conv_5_2")
+                net = self.residual_block_2(net, n_channels=512, n_filters=512, is_training=is_training, scope="conv_5_3")
                 n_channels = 512
 
             elif self.n_layers == 50:
                 # 3 x 64
                 net = self.shortcut(net, dim_in=64, dim_out=256, mode=shortcut_mode)
-                net = self.residual_block_3(net, n_channels=256, n_filters=64, scope="conv_2_1")
-                net = self.residual_block_3(net, n_channels=256, n_filters=64, scope="conv_2_2")
-                net = self.residual_block_3(net, n_channels=256, n_filters=64, scope="conv_2_3")
+                net = self.residual_block_3(net, n_channels=256, n_filters=64, is_training=is_training, scope="conv_2_1")
+                net = self.residual_block_3(net, n_channels=256, n_filters=64, is_training=is_training, scope="conv_2_2")
+                net = self.residual_block_3(net, n_channels=256, n_filters=64, is_training=is_training, scope="conv_2_3")
                 # 4 x 128
                 net = self.shortcut(net, dim_in=256, dim_out=512, mode=shortcut_mode)
-                net = self.residual_block_3(net, n_channels=512, n_filters=128, with_stride=[1, 2, 2, 1], scope="conv_3_1")
-                net = self.residual_block_3(net, n_channels=512, n_filters=128, scope="conv_3_2")
-                net = self.residual_block_3(net, n_channels=512, n_filters=128, scope="conv_3_3")
-                net = self.residual_block_3(net, n_channels=512, n_filters=128, scope="conv_3_4")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training, with_stride=[1, 2, 2, 1], scope="conv_3_1")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training, scope="conv_3_2")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training, scope="conv_3_3")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training, scope="conv_3_4")
                 # 6 x 256
                 net = self.shortcut(net, dim_in=512, dim_out=1024, mode=shortcut_mode)
-                net = self.residual_block_3(net, n_channels=1024, n_filters=256, with_stride=[1, 2, 2, 1], scope="conv_4_1")
-                net = self.residual_block_3(net, n_channels=1024, n_filters=256, scope="conv_4_2")
-                net = self.residual_block_3(net, n_channels=1024, n_filters=256, scope="conv_4_3")
-                net = self.residual_block_3(net, n_channels=1024, n_filters=256, scope="conv_4_4")
-                net = self.residual_block_3(net, n_channels=1024, n_filters=256, scope="conv_4_5")
-                net = self.residual_block_3(net, n_channels=1024, n_filters=256, scope="conv_4_6")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training, with_stride=[1, 2, 2, 1], scope="conv_4_1")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training, scope="conv_4_2")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training, scope="conv_4_3")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training, scope="conv_4_4")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training, scope="conv_4_5")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training, scope="conv_4_6")
                 # 3 x 512
                 net = self.shortcut(net, dim_in=1024, dim_out=2048, mode=shortcut_mode)
-                net = self.residual_block_3(net, n_channels=2048, n_filters=512, with_stride=[1, 2, 2, 1], scope="conv_5_1")
-                net = self.residual_block_3(net, n_channels=2048, n_filters=512, scope="conv_5_2")
-                net = self.residual_block_3(net, n_channels=2048, n_filters=512, scope="conv_5_3")
+                net = self.residual_block_3(net, n_channels=2048, n_filters=512, is_training=is_training, with_stride=[1, 2, 2, 1], scope="conv_5_1")
+                net = self.residual_block_3(net, n_channels=2048, n_filters=512, is_training=is_training, scope="conv_5_2")
+                net = self.residual_block_3(net, n_channels=2048, n_filters=512, is_training=is_training, scope="conv_5_3")
                 n_channels = 2048
 
             elif self.n_layers == 101:
-                pass
+                # 3 x 64
+                net = self.shortcut(net, dim_in=64, dim_out=256, mode=shortcut_mode)
+                net = self.residual_block_3(net, n_channels=256, n_filters=64, is_training=is_training,
+                                            scope="conv_2_1")
+                net = self.residual_block_3(net, n_channels=256, n_filters=64, is_training=is_training,
+                                            scope="conv_2_2")
+                net = self.residual_block_3(net, n_channels=256, n_filters=64, is_training=is_training,
+                                            scope="conv_2_3")
+                # 4 x 128
+                net = self.shortcut(net, dim_in=256, dim_out=512, mode=shortcut_mode)
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            with_stride=[1, 2, 2, 1], scope="conv_3_1")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            scope="conv_3_2")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            scope="conv_3_3")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            scope="conv_3_4")
+                # 23 x 256
+                net = self.shortcut(net, dim_in=512, dim_out=1024, mode=shortcut_mode)
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            with_stride=[1, 2, 2, 1], scope="conv_4_1")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_2")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_3")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_4")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_5")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_6")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_7")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_8")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_9")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_10")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_11")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_12")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_13")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_14")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_15")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_16")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_17")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_18")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_19")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_20")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_21")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_22")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_23")
+                # 3 x 512
+                net = self.shortcut(net, dim_in=1024, dim_out=2048, mode=shortcut_mode)
+                net = self.residual_block_3(net, n_channels=2048, n_filters=512, is_training=is_training,
+                                            with_stride=[1, 2, 2, 1], scope="conv_5_1")
+                net = self.residual_block_3(net, n_channels=2048, n_filters=512, is_training=is_training,
+                                            scope="conv_5_2")
+                net = self.residual_block_3(net, n_channels=2048, n_filters=512, is_training=is_training,
+                                            scope="conv_5_3")
+                n_channels = 2048
+
             elif self.n_layers == 152:
-                pass
+                # 3 x 64
+                net = self.shortcut(net, dim_in=64, dim_out=256, mode=shortcut_mode)
+                net = self.residual_block_3(net, n_channels=256, n_filters=64, is_training=is_training,
+                                            scope="conv_2_1")
+                net = self.residual_block_3(net, n_channels=256, n_filters=64, is_training=is_training,
+                                            scope="conv_2_2")
+                net = self.residual_block_3(net, n_channels=256, n_filters=64, is_training=is_training,
+                                            scope="conv_2_3")
+                # 8 x 128
+                net = self.shortcut(net, dim_in=256, dim_out=512, mode=shortcut_mode)
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            with_stride=[1, 2, 2, 1], scope="conv_3_1")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            scope="conv_3_2")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            scope="conv_3_3")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            scope="conv_3_4")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            scope="conv_3_5")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            scope="conv_3_6")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            scope="conv_3_7")
+                net = self.residual_block_3(net, n_channels=512, n_filters=128, is_training=is_training,
+                                            scope="conv_3_8")
+                # 36 x 256
+                net = self.shortcut(net, dim_in=512, dim_out=1024, mode=shortcut_mode)
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            with_stride=[1, 2, 2, 1], scope="conv_4_1")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_2")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_3")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_4")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_5")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_6")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_7")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_8")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_9")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_10")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_11")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_12")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_13")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_14")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_15")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_16")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_17")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_18")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_19")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_20")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_21")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_22")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_23")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_24")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_25")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_26")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_27")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_28")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_29")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_30")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_31")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_32")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_33")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_34")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_35")
+                net = self.residual_block_3(net, n_channels=1024, n_filters=256, is_training=is_training,
+                                            scope="conv_4_36")
+                # 3 x 512
+                net = self.shortcut(net, dim_in=1024, dim_out=2048, mode=shortcut_mode)
+                net = self.residual_block_3(net, n_channels=2048, n_filters=512, is_training=is_training,
+                                            with_stride=[1, 2, 2, 1], scope="conv_5_1")
+                net = self.residual_block_3(net, n_channels=2048, n_filters=512, is_training=is_training,
+                                            scope="conv_5_2")
+                net = self.residual_block_3(net, n_channels=2048, n_filters=512, is_training=is_training,
+                                            scope="conv_5_3")
+                n_channels = 2048
 
             net = tf.nn.avg_pool(net, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="SAME")
 

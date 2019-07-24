@@ -29,6 +29,18 @@ class ResNetTestCase(unittest.TestCase):
                           is_encoder=False, validation_size=10,
                           metadata_path=METADATA_PATH, logger=None)
         self.assertIsNotNone(resnet_3)
+        resnet_4 = ResNet(classes, n_layers=101, batch_size=1, height=224, width=224, dim_out=10,
+                          grayscale=True, binarize=True, normalize=False,
+                          learning_rate=10, n_epochs=1, validation_step=1,
+                          is_encoder=False, validation_size=10,
+                          metadata_path=METADATA_PATH, logger=None)
+        self.assertIsNotNone(resnet_4)
+        resnet_5 = ResNet(classes, n_layers=152, batch_size=1, height=224, width=224, dim_out=10,
+                          grayscale=True, binarize=True, normalize=False,
+                          learning_rate=10, n_epochs=1, validation_step=1,
+                          is_encoder=False, validation_size=10,
+                          metadata_path=METADATA_PATH, logger=None)
+        self.assertIsNotNone(resnet_5)
 
     def test_load_example(self):
         classes = {0: 'ambiguous', 1: 'bird', 2: 'sheep'}

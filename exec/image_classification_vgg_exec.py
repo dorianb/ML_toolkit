@@ -27,14 +27,14 @@ parser.add_argument('--name', type=str, help='The unique name of the program', d
 parser.add_argument('--debug', type=int, help='Debug mode', default=0)
 args = parser.parse_args()
 
-logger = logging.Logger("image_classification_exec",
+logger = logging.Logger("image_classification_vgg_exec",
                         level=logging.DEBUG if args.debug else logging.INFO)
 
 consoleHandler = logging.StreamHandler()
 consoleHandler.setLevel(logging.DEBUG if args.debug else logging.INFO)
 logger.addHandler(consoleHandler)
 
-fileHandler = logging.FileHandler("image_classification_exec.log")
+fileHandler = logging.FileHandler("image_classification_vgg_exec.log")
 fileHandler.setLevel(logging.DEBUG)
 logger.addHandler(fileHandler)
 
