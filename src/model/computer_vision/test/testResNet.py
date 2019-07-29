@@ -42,36 +42,6 @@ class ResNetTestCase(unittest.TestCase):
                           metadata_path=METADATA_PATH, logger=None)
         self.assertIsNotNone(resnet_5)
 
-    def test_load_example(self):
-        classes = {0: 'ambiguous', 1: 'bird', 2: 'sheep'}
-        resnet_1 = ResNet(classes, n_layers=34, batch_size=1, height=224, width=224, dim_out=10,
-                          grayscale=True, binarize=True, normalize=False,
-                          learning_rate=10, n_epochs=1, validation_step=1,
-                          is_encoder=False, validation_size=10,
-                          metadata_path=METADATA_PATH, logger=None)
-        example = os.path.join(DATASET_PATH, "002.american-flag", "002_0001.jpg"), 2
-        image, label = resnet_1.load_example(example)
-        self.assertEqual(image.shape, (224, 224, 1))
-        self.assertEqual(label.shape, (3,))
-        self.assertEqual(label[2], 1)
-
-    def test_load_batch(self):
-        classes = {0: 'ambiguous', 1: 'bird', 2: 'sheep'}
-        resnet_1 = ResNet(classes, n_layers=34, batch_size=1, height=224, width=224, dim_out=10,
-                          grayscale=True, binarize=True, normalize=False,
-                          learning_rate=10, n_epochs=1, validation_step=1,
-                          is_encoder=False, validation_size=10,
-                          metadata_path=METADATA_PATH, logger=None)
-        examples = [
-            (os.path.join(DATASET_PATH, "002.american-flag", "002_0001.jpg"), 2),
-            (os.path.join(DATASET_PATH, "002.american-flag", "002_0002.jpg"), 2)
-        ]
-        images, labels = resnet_1.load_batch(examples)
-        self.assertEqual(images.shape, (2, 224, 224, 1))
-        self.assertEqual(labels.shape, (2, 3))
-        self.assertEqual(labels[0][2], 1)
-        self.assertEqual(labels[1][2], 1)
-
     def test_fit(self):
 
         classes = {0: 'ambiguous', 1: 'bird', 2: 'sheep'}

@@ -8,15 +8,26 @@ from computer_vision.classComputerVision import ComputerVision
 
 class ImageClassification(ComputerVision):
 
-    def __init__(self):
+    def __init__(self, n_classes=10, width=224, height=224, grayscale=True, binarize=True, normalize=False):
         """
         The initialization of a computer vision model.
 
         Args:
-            summary_path: the path to the summaries
-            checkpoint_path: the path to the checkpoints
+            n_classes: the number of classes
+            height: the height of the image
+            width: the width of the image
+            grayscale: whether the input image are grayscale
+            binarize: whether input image are binarized
+            normalize: whether input image are normalized
         """
         ComputerVision.__init__(self)
+
+        self.grayscale = grayscale
+        self.binarize = binarize
+        self.normalize = normalize
+        self.resize_dim = (width, height)
+
+        self.n_classes = n_classes
 
     @staticmethod
     def compute_loss(output, label, loss_name="sigmoid_cross_entropy"):
@@ -86,8 +97,7 @@ class ImageClassification(ComputerVision):
                             "purpose only")
 
         # Loss
-        loss = ComputerVision.compute_loss(self.model, self.label,
-                                           loss_name="softmax_cross_entropy")
+        loss = self.compute_loss(self.model, self.label, loss_name="softmax_cross_entropy")
 
         # Compute probabilities
         logit = tf.nn.softmax(self.model)
@@ -95,7 +105,7 @@ class ImageClassification(ComputerVision):
                          summarize=self.n_classes * self.batch_size) if self.debug else logit
 
         # Accuracy
-        accuracy = ComputerVision.compute_accuracy(self, logit, self.label)
+        accuracy = self.compute_accuracy(logit, self.label)
 
         # Optimization
         train_op = ComputerVision.compute_gradient(self, loss, self.global_step)
