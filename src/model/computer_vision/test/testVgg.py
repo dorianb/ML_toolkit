@@ -63,15 +63,15 @@ class VggTestCase(unittest.TestCase):
             (os.path.join(DATASET_PATH, "002.american-flag", "002_0002.jpg"), 2)
         ]
 
-        vgg_1 = Vgg(classes, batch_size=2, height=224, width=224, dim_out=len(classes),
+        vgg_1 = Vgg(classes, batch_size=2, height=56, width=56, dim_out=len(classes),
                     grayscale=True, binarize=True, normalize=False,
                     learning_rate=10, n_epochs=1, validation_step=1,
-                    checkpoint_step=1, metadata_path=METADATA_PATH,
+                    checkpoint_step=2, metadata_path=METADATA_PATH,
                     is_encoder=False, validation_size=10, logger=None)
         vgg_1.fit(training_set, validation_set)
         self.assertTrue(True)
 
-        vgg_2 = Vgg(classes, batch_size=2, height=224, width=224, dim_out=len(classes),
+        vgg_2 = Vgg(classes, batch_size=2, height=56, width=56, dim_out=len(classes),
                     grayscale=True, binarize=True, normalize=False,
                     learning_rate=10, n_epochs=1, validation_step=1,
                     metadata_path=METADATA_PATH, is_encoder=False,
