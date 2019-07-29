@@ -17,7 +17,7 @@ class ResNet(ImageClassification):
                  optimizer="adam", metadata_path="", name="vgg",
                  from_pretrained=False, is_training=True, logger=None, debug=False):
         """
-        Initialization of the Vgg model.
+        Initialization of the Resnet model.
 
         Args:
             classes: dictionary of classes
